@@ -290,6 +290,31 @@ h1.title { font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 
 }
 .plus-icon { width: 44px; height: 44px; border-radius: 10px; }
 
+.demo-tag {
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--muted); background: var(--field);
+  padding: 2px 6px; border-radius: 6px; vertical-align: 1px;
+}
+
+.join-card { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.join-card .emoji { font-size: 28px; }
+
+/* ---------- Joining ---------- */
+
+.join { padding: calc(40px + env(safe-area-inset-top)) 4px 24px; text-align: center; }
+.join-icon { width: 84px; height: 84px; border-radius: 20px; box-shadow: 0 8px 24px rgba(242, 118, 46, 0.35); }
+.join h1 { font-size: 32px; letter-spacing: -0.02em; margin: 16px 0 4px; }
+.join > p.muted { margin: 0 0 24px; }
+.join form { text-align: left; }
+.join .swatches { justify-content: center; }
+.look-around { display: block; margin: 14px auto 0; }
+
+.splash { min-height: 80dvh; display: grid; place-items: center; }
+.splash img { width: 84px; height: 84px; border-radius: 20px; animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(0.92); opacity: 0.7; } }
+
+.btn:disabled { opacity: 0.6; }
+
 /* ---------- Bottom tabs ---------- */
 
 .tabs {
@@ -304,6 +329,7 @@ h1.title { font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 
   padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
   z-index: 500;
 }
+.tabs[hidden] { display: none; }
 .tab {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   font-size: 11px; font-weight: 600;
@@ -412,10 +438,10 @@ textarea.field { resize: none; min-height: 96px; }
 .dog-photo-pick svg { width: 30px; height: 30px; }
 .dog-photo-pick img { width: 96px; height: 96px; object-fit: cover; display: block; }
 
-.swatches { display: flex; gap: 12px; flex-wrap: wrap; padding: 4px; }
+.swatches { display: flex; gap: 10px; flex-wrap: wrap; padding: 4px; }
 .swatch { position: relative; cursor: pointer; }
 .swatch input { position: absolute; opacity: 0; }
-.swatch span { display: block; width: 34px; height: 34px; border-radius: 50%; background: var(--c); }
+.swatch span { display: block; width: 30px; height: 30px; border-radius: 50%; background: var(--c); }
 .swatch input:checked + span { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--c); }
 
 .plus-hero { text-align: center; }

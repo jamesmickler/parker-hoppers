@@ -8,6 +8,11 @@ const $tabs = document.getElementById('tabs');
 const $banner = document.getElementById('banner');
 const $sheetRoot = document.getElementById('sheet-root');
 
+// 'loading' → then 'online' (joined), 'needs-join' (connected, not joined) or 'offline' (demo pack only)
+let status = 'loading';
+// A photo picked in a form that hasn't been saved yet.
+let draftPhoto = null;
+
 // ---------- Small helpers ----------
 
 const svg = (paths) =>
@@ -73,6 +78,54 @@ function formatDistance(meters) {
 const toggle = (action, on, attrs = '', disabled = false) =>
   `<label class="switch"><input type="checkbox" data-change="${action}" ${attrs} ${on ? 'checked' : ''} ${disabled ? 'disabled' : ''}><span></span></label>`;
 
+const COLORS = ['#F2A23A', '#5B8DEF', '#34A853', '#FF6B8B', '#A77BF3', '#2BB5B8', '#C98A4B', '#8E8E93'];
+
+const swatchPicker = () => `
+  <div class="swatches">
+    ${COLORS.map((c, i) => `<label class="swatch" style="--c:${c}"><input type="radio" name="color" value="${c}" ${i === 1 ? 'checked' : ''} aria-label="Badge color ${i + 1}"><span></span></label>`).join('')}
+  </div>`;
+
+const dogPhotoPicker = () => `
+  <label class="dog-photo-pick" aria-label="Add a photo of your dog">
+    <span id="dog-photo-preview">${icon.camera}</span>
+    <input type="file" accept="image/*" data-change="pick-dog-photo" class="visually-hidden">
+  </label>`;
+
+/** Turns a server error into something a person can act on. */
+function friendly(error) {
+  const message = String(error?.message ?? error);
+  if (/anonymous sign-ins are disabled/i.test(message)) return 'Sign-ups are switched off in Supabase (Allow anonymous sign-ins).';
+  if (/fetch|network|timed out/i.test(message)) return 'Check your internet connection and try again.';
+  if (/rate limit/i.test(message)) return 'Too many sign-ups from this network. Try again in a bit.';
+  return message;
+}
+
+/** Runs a change that talks to the server; shows a banner instead of failing silently. */
+async function run(fn) {
+  try {
+    await fn();
+    return true;
+  } catch (error) {
+    console.warn(error);
+    showBanner('That didn’t go through', friendly(error));
+    return false;
+  }
+}
+
+/** Disables a form's submit button while it saves, so it can't be sent twice. */
+async function submitting(form, fn) {
+  const button = form.querySelector('[type=submit]');
+  const label = button.innerHTML;
+  button.disabled = true;
+  button.textContent = 'Saving…';
+  const ok = await run(fn);
+  if (!ok && button.isConnected) {
+    button.disabled = false;
+    button.innerHTML = label;
+  }
+  return ok;
+}
+
 /** Shrinks a photo so it loads fast and fits in the browser's storage. */
 function readImage(file, maxSize) {
   return new Promise((resolve, reject) => {
@@ -114,7 +167,9 @@ function parksScreen() {
     <div class="map-slot" id="map-main"></div>
     ${myParks.length ? `<h2 class="section">Your parks</h2><div class="stack">${myParks.map(parkRow).join('')}</div>` : ''}
     ${otherParks.length ? `<h2 class="section">More dog parks</h2><div class="stack">${otherParks.map(parkRow).join('')}</div>` : ''}
-    <p class="footnote">Park locations and hours come from the City of Charleston and Charleston County Parks. The people and dogs are made up for this demo.</p>`;
+    <p class="footnote">Park locations and hours come from the City of Charleston and Charleston County Parks. ${store.isOnline()
+      ? 'Maya, Theo, Priya, Sam and Dana are a made-up demo pack; everyone else is a real person who joined.'
+      : 'The people and dogs are made up for this demo.'}</p>`;
 }
 
 function hereCard(c) {
@@ -184,7 +239,7 @@ function parkScreen(id) {
 }
 
 function visitorRow(v) {
-  const who = v.personId === store.state.myId ? 'You' : `with ${esc(v.person.name)}`;
+  const who = v.personId === store.myId() ? 'You' : `with ${esc(v.person.name)}`;
   return `
     <div class="row">
       ${avatars(v.dogs, 40)}
@@ -193,7 +248,7 @@ function visitorRow(v) {
 }
 
 function momentsScreen() {
-  const posts = store.state.posts;
+  const posts = store.posts();
   return `
     <header class="topbar">
       <h1>Park Moments</h1>
@@ -211,7 +266,7 @@ function postCard(post) {
   const dog = store.dog(post.dogId);
   const park = parkById(post.parkId);
   if (!author || !dog) return '';
-  const isMine = post.authorId === store.state.myId;
+  const isMine = post.authorId === store.myId();
   const photo = post.photo ? `<img src="${esc(post.photo)}" alt="${esc(post.caption)}">` : `<span>${post.emoji}</span>`;
   const [c1, c2] = (post.colors ?? []).map(safeColor);
   return `
@@ -241,11 +296,14 @@ function friendsScreen() {
       <span class="chev">${icon.chevron}</span>
     </a>`).join('');
   const packRows = store.friends().map((f) => {
-    const dogs = f.dogIds.map((id) => store.dog(id));
+    const dogs = f.dogIds.map((id) => store.dog(id)).filter(Boolean);
     return `
       <div class="row">
         ${avatars(dogs, 40)}
-        <div class="grow"><b>${esc(f.name)}</b><div class="small muted">${esc(dogs.map((d) => `${d.name} the ${d.breed}`).join(', '))}</div></div>
+        <div class="grow">
+          <b>${esc(f.name)}</b>${store.isDemoPerson(f.id) ? ' <span class="demo-tag">demo</span>' : ''}
+          <div class="small muted">${esc(dogs.map((d) => `${d.name} the ${d.breed}`).join(', '))}</div>
+        </div>
         ${store.checkInFor(f.id) ? '<span class="tag">At park</span>' : ''}
       </div>`;
   }).join('');
@@ -264,8 +322,20 @@ function friendsScreen() {
 
 function meScreen() {
   const { prefs } = store.state;
+  const account = {
+    online: `<div class="list-title">Account</div>
+      <div class="list"><button class="row row-btn danger" data-action="leave">Leave Parker Hoppers</button></div>
+      <p class="list-foot">Deletes your name, dogs, check-ins and posts from Parker Hoppers.</p>`,
+    'needs-join': `<a class="card join-card" href="#/join">
+        <span class="emoji">🐾</span>
+        <div class="grow"><b>Join the real pack</b><div class="small muted">Right now you’re looking around with demo data. Join with just your name and your dog’s name.</div></div>
+        <span class="chev">${icon.chevron}</span>
+      </a>`,
+    offline: '<p class="footnote">Couldn’t reach the Parker Hoppers server, so you’re seeing the demo pack only.</p>',
+  }[status] ?? '';
   return `
-    <header class="topbar"><h1>Me</h1></header>
+    <header class="topbar"><h1>${store.isOnline() ? esc(store.me().name) : 'Me'}</h1></header>
+    ${status === 'needs-join' ? account : ''}
     <div class="list-title">Your pack</div>
     <div class="list">
       ${store.myDogs().map((d) => `
@@ -293,12 +363,35 @@ function meScreen() {
       <div class="row"><div class="grow">Who sees me at the park</div><span class="muted">Friends only</span></div>
       <div class="row"><div class="grow">Who sees my posts</div><span class="muted">Friends only</span></div>
     </div>
-    <div class="list-title">Demo</div>
-    <div class="list"><button class="row row-btn danger" data-action="reset">Reset demo data</button></div>
+    ${status === 'needs-join' ? '' : account}
+    <div class="list-title">Demo pack</div>
+    <div class="list"><button class="row row-btn danger" data-action="reset">Reset demo pack</button></div>
+    <p class="list-foot">Brings back Maya, Theo and the other made-up friends. Real people aren’t affected.</p>
     <p class="footnote center">Parker Hoppers · prototype</p>`;
 }
 
+function joinScreen() {
+  return `
+    <div class="join">
+      <img class="join-icon" src="icons/icon-192.png" alt="">
+      <h1>Parker Hoppers</h1>
+      <p class="muted">See when your friends’ dogs are at the park, so you can meet up.</p>
+      <form data-submit="join" class="stack">
+        ${dogPhotoPicker()}
+        <input class="field" name="name" placeholder="Your first name" required maxlength="40" autocomplete="given-name">
+        <input class="field" name="dog" placeholder="Your dog’s name" required maxlength="30" autocomplete="off">
+        <input class="field" name="breed" placeholder="Breed (optional)" maxlength="40" autocomplete="off">
+        ${swatchPicker()}
+        <button class="btn btn-primary" type="submit">${icon.paw} Join the pack</button>
+      </form>
+      <button class="link-btn look-around" data-action="look-around">Just look around first</button>
+      <p class="footnote center">No email or password. Everyone testing Parker Hoppers can see your first name, your dogs, and the park you check in at.</p>
+    </div>`;
+}
+
 const screens = {
+  loading: () => '<div class="splash"><img src="icons/icon-192.png" alt="Parker Hoppers"></div>',
+  join: joinScreen,
   parks: parksScreen,
   park: (r) => parkScreen(r.id),
   moments: momentsScreen,
@@ -355,7 +448,7 @@ const sheets = {
       ${sheetHead('New moment')}
       <form data-submit="newpost" class="stack">
         <label class="photo-pick">
-          <span class="photo-preview" id="photo-preview">${sheet.photo ? `<img src="${sheet.photo}" alt="">` : `${icon.camera}<span>Add a photo</span>`}</span>
+          <span class="photo-preview" id="photo-preview">${icon.camera}<span>Add a photo</span></span>
           <input type="file" accept="image/*" data-change="pick-photo" class="visually-hidden">
         </label>
         <select class="field" name="dog" aria-label="Which pup">
@@ -373,7 +466,7 @@ const sheets = {
     const post = store.post(sheet.postId);
     if (!post) return '';
     const author = store.person(post.authorId);
-    const isMine = post.authorId === store.state.myId;
+    const isMine = post.authorId === store.myId();
     return `
       <div class="stack">
         ${isMine
@@ -385,20 +478,14 @@ const sheets = {
   },
 
   adddog() {
-    const colors = ['#F2A23A', '#5B8DEF', '#34A853', '#FF6B8B', '#A77BF3', '#2BB5B8', '#C98A4B', '#8E8E93'];
     return `
       ${sheetHead('Add a dog')}
       <form data-submit="adddog" class="stack">
-        <label class="dog-photo-pick" aria-label="Add a photo">
-          <span id="dog-photo-preview">${sheet.photo ? `<img src="${sheet.photo}" alt="">` : icon.camera}</span>
-          <input type="file" accept="image/*" data-change="pick-dog-photo" class="visually-hidden">
-        </label>
+        ${dogPhotoPicker()}
         <input class="field" name="name" placeholder="Name" required maxlength="30" autocomplete="off">
         <input class="field" name="breed" placeholder="Breed (optional)" maxlength="40" autocomplete="off">
         <div class="list-title flush">Badge color</div>
-        <div class="swatches">
-          ${colors.map((c, i) => `<label class="swatch" style="--c:${c}"><input type="radio" name="color" value="${c}" ${i === 1 ? 'checked' : ''}><span></span></label>`).join('')}
-        </div>
+        ${swatchPicker()}
         <button class="btn btn-primary" type="submit">Save</button>
       </form>`;
   },
@@ -436,6 +523,7 @@ const sheets = {
 
 function openSheet(next) {
   sheet = next;
+  draftPhoto = null;
   $sheetRoot.innerHTML = `
     <div class="sheet-backdrop">
       <div class="sheet" role="dialog" aria-modal="true"><div class="grabber"></div>${sheets[sheet.type]()}</div>
@@ -535,8 +623,11 @@ function mountMap(slotId, key, list, focus) {
 
 function parseHash() {
   const [, name, arg] = location.hash.split('/');
+  if (status === 'loading') return { name: 'loading' };
+  const mustJoin = status === 'needs-join' && !store.state.prefs.guest;
+  if (mustJoin || (name === 'join' && status === 'needs-join')) return { name: 'join' };
   if (name === 'park') return { name: 'park', id: arg, tab: 'parks' };
-  if (screens[name]) return { name, tab: name };
+  if (screens[name] && name !== 'join' && name !== 'loading') return { name, tab: name };
   return { name: 'parks', tab: 'parks' };
 }
 
@@ -550,7 +641,10 @@ function renderTabs() {
 }
 
 function renderView() {
+  // Don't wipe out a half-filled join form when someone else's check-in arrives.
+  if (route.name === 'join' && $view.querySelector('form[data-submit=join]')) return;
   $view.innerHTML = screens[route.name](route);
+  $tabs.hidden = !route.tab;
   renderTabs();
   if (route.name === 'parks') mountMap('map-main', 'main', parks, null);
   if (route.name === 'park' && parkById(route.id)) mountMap('map-detail', 'detail', [parkById(route.id)], parkById(route.id));
@@ -566,12 +660,15 @@ store.subscribe(renderView);
 
 // ---------- What taps do ----------
 
+function announceArrival({ person, dogs, park }) {
+  if (!park || !store.state.prefs.alerts || !store.alertsOn(park.id)) return;
+  const title = dogs.length ? `${dogNames(dogs)} just arrived!` : `${person.name} just arrived!`;
+  showBanner(title, `${person.name} is at ${park.name}.`, `#/park/${park.id}`);
+  navigator.vibrate?.(80);
+}
+
 function simulate() {
-  const { person, dogs, park } = store.simulateArrival();
-  if (store.state.prefs.alerts && store.alertsOn(park.id)) {
-    showBanner(`${dogNames(dogs)} just arrived!`, `${person.name} is at ${park.name}.`, `#/park/${park.id}`);
-    navigator.vibrate?.(80);
-  }
+  announceArrival(store.simulateArrival());
 }
 
 function locate() {
@@ -616,9 +713,20 @@ const actions = {
   simulate,
   locate,
   invite,
-  checkout() {
-    store.checkOut();
-    showBanner('Checked out', 'Thanks for hopping by! 🐾');
+  async checkout() {
+    if (await run(() => store.checkOut())) showBanner('Checked out', 'Thanks for hopping by! 🐾');
+  },
+  'look-around'() {
+    store.lookAround();
+    location.hash = '#/parks';
+  },
+  async leave() {
+    if (!confirm('Leave Parker Hoppers? This deletes your name, dogs, check-ins and posts.')) return;
+    if (!(await run(() => store.leave()))) return;
+    status = 'needs-join';
+    location.hash = '#/join';
+    route = parseHash();
+    renderView();
   },
   'open-checkin': (el) => openSheet({ type: 'checkin', parkId: el.dataset.park }),
   'open-newpost': () => openSheet({ type: 'newpost' }),
@@ -626,15 +734,16 @@ const actions = {
   'open-plus': () => openSheet({ type: 'plus' }),
   'post-menu': (el) => openSheet({ type: 'postmenu', postId: el.dataset.post }),
   'close-sheet': closeSheet,
-  like: (el) => store.toggleLike(el.dataset.post),
-  'delete-post'(el) {
-    store.deletePost(el.dataset.post);
+  like: (el) => run(() => store.toggleLike(el.dataset.post)),
+  async 'delete-post'(el) {
     closeSheet();
+    await run(() => store.deletePost(el.dataset.post));
   },
-  'report-post'(el) {
-    store.deletePost(el.dataset.post);
+  async 'report-post'(el) {
     closeSheet();
-    showBanner('Thanks for letting us know', 'That post is hidden while we review it.');
+    if (await run(() => store.reportPost(el.dataset.post))) {
+      showBanner('Thanks for letting us know', 'That post is hidden while we review it.');
+    }
   },
   'hide-author'(el) {
     const p = store.person(el.dataset.person);
@@ -648,9 +757,9 @@ const actions = {
     showBanner(store.state.prefs.plus ? 'Welcome to Plus! ✨' : 'Plus turned off', store.state.prefs.plus ? 'Your widget and instant alerts are on.' : 'You’re back on the free plan.');
   },
   reset() {
-    if (!confirm('Reset all demo data? Your added dogs and posts will be removed.')) return;
+    if (!confirm('Reset the demo pack? Made-up friends, their check-ins and posts go back to the start.')) return;
     store.reset();
-    showBanner('Demo reset', 'Everything is back to the starting data.');
+    showBanner('Demo pack reset', 'Maya, Theo and friends are back where they started.');
   },
 };
 
@@ -661,8 +770,8 @@ const changes = {
     const file = el.files[0];
     if (!file) return;
     try {
-      sheet.photo = await readImage(file, 1080);
-      document.getElementById('photo-preview').innerHTML = `<img src="${sheet.photo}" alt="">`;
+      draftPhoto = await readImage(file, 1080);
+      document.getElementById('photo-preview').innerHTML = `<img src="${draftPhoto}" alt="">`;
     } catch {
       showBanner('Couldn’t open that photo', 'Try a different one.');
     }
@@ -671,8 +780,8 @@ const changes = {
     const file = el.files[0];
     if (!file) return;
     try {
-      sheet.photo = await readImage(file, 320);
-      document.getElementById('dog-photo-preview').innerHTML = `<img src="${sheet.photo}" alt="">`;
+      draftPhoto = await readImage(file, 320);
+      document.getElementById('dog-photo-preview').innerHTML = `<img src="${draftPhoto}" alt="">`;
     } catch {
       showBanner('Couldn’t open that photo', 'Try a different one.');
     }
@@ -680,39 +789,51 @@ const changes = {
 };
 
 const submits = {
-  checkin(form) {
+  async join(form) {
+    const data = new FormData(form);
+    const name = data.get('name').trim();
+    const dogName = data.get('dog').trim();
+    if (!name || !dogName) return;
+    const dog = { name: dogName, breed: data.get('breed').trim() || 'Good dog', color: data.get('color') || '#5B8DEF', photo: draftPhoto };
+    if (!(await submitting(form, () => store.join(name, dog)))) return;
+    draftPhoto = null;
+    status = 'online';
+    location.hash = '#/parks';
+    route = parseHash();
+    $view.innerHTML = '';
+    renderView();
+    showBanner(`Welcome to the pack, ${name}!`, `Tap a park and “We’re here!” when you and ${dogName} arrive.`);
+  },
+  async checkin(form) {
     const dogIds = new FormData(form).getAll('dog');
     if (!dogIds.length) {
       showBanner('Pick at least one pup', 'Who’s coming to the park?');
       return;
     }
     const park = parkById(sheet.parkId);
-    store.checkIn(park.id, dogIds);
+    if (!(await submitting(form, () => store.checkIn(park.id, dogIds)))) return;
     closeSheet();
-    const names = dogNames(dogIds.map((id) => store.dog(id)));
+    const names = dogNames(dogIds.map((id) => store.dog(id)).filter(Boolean));
     showBanner('You’re checked in!', `Friends can now see ${names} at ${park.name}.`);
   },
-  newpost(form) {
+  async newpost(form) {
     const data = new FormData(form);
     const caption = data.get('caption').trim();
-    if (!caption && !sheet.photo) {
+    if (!caption && !draftPhoto) {
       showBanner('Add a photo or a caption', 'Share what happened at the park.');
       return;
     }
-    store.addPost({ dogId: data.get('dog'), parkId: data.get('park'), caption, photo: sheet.photo ?? null });
+    const post = { dogId: data.get('dog'), parkId: data.get('park'), caption, photo: draftPhoto };
+    if (!(await submitting(form, () => store.addPost(post)))) return;
     closeSheet();
     window.scrollTo(0, 0);
   },
-  adddog(form) {
+  async adddog(form) {
     const data = new FormData(form);
     const name = data.get('name').trim();
     if (!name) return;
-    store.addDog({
-      name,
-      breed: data.get('breed').trim() || 'Good dog',
-      color: data.get('color') || '#5B8DEF',
-      photo: sheet.photo ?? null,
-    });
+    const dog = { name, breed: data.get('breed').trim() || 'Good dog', color: data.get('color') || '#5B8DEF', photo: draftPhoto };
+    if (!(await submitting(form, () => store.addDog(dog)))) return;
     closeSheet();
     showBanner(`${name} joined your pack!`, 'You can bring them when you check in.');
   },
@@ -746,5 +867,19 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && sheet) closeSheet();
 });
 
+// ---------- Start up ----------
+
+renderView(); // splash while we connect
+status = await store.start({ onArrival: announceArrival });
+route = parseHash();
 renderView();
+if (status === 'offline') {
+  showBanner('Showing the demo pack', 'Couldn’t reach the Parker Hoppers server, so real people won’t appear.');
+}
+
 setInterval(store.tick, 60_000);
+
+// Phones pause pages in the background; catch up as soon as the app is open again.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') store.refresh();
+});

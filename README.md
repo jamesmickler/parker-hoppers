@@ -2,28 +2,32 @@
 
 Parker Hoppers turns spontaneous dog park visits into planned reunions. Check in when you get to the park, and friends in your network find out that your pup is there. It works the way parents coordinate playdates, but for dogs.
 
-This is a working prototype. The parks are real Charleston off-leash areas; the people, dogs and posts are made up.
+This is a working prototype. The parks are real Charleston off-leash areas. People who join are real and shared live between phones. A made-up "demo pack" (Maya, Theo, Priya, Sam and Dana, marked **demo**) keeps the app from looking empty.
 
 ## Try it
 
 Open the live site on a phone for the best experience. On iPhone, tap Share → **Add to Home Screen** and it opens like an app.
 
-- **Parks:** a map and list of dog parks with how many pups are there, and which friends. Tap the 🔔 button to simulate a friend arriving.
-- **Check in:** open a park, tap **We're here!** and pick which dogs came along.
+- **Join:** type your first name and your dog's name. There's no email or password. Or tap **Just look around first** to explore with demo data.
+- **Parks:** a map and list of dog parks with how many pups are there, and which friends. Tap the 🔔 button to simulate a demo friend arriving.
+- **Check in:** open a park, tap **We're here!** and pick which dogs came along. Everyone with Hazel Parker or Cannon Park alerts on gets a "just arrived!" notice within a second or two.
 - **Find my park:** the 📍 button uses your location to find the nearest dog park.
 - **Moments:** share a photo from the park, like posts, and report or hide posts.
 - **Plus:** the premium tier, with a home-screen widget preview.
 
-Your data stays in your own browser. **Me → Reset demo data** starts over.
+**Me → Leave Parker Hoppers** deletes your name, dogs, check-ins and posts.
 
 ## How it's built
 
 - `web/`: the app. It's plain HTML, CSS and JavaScript with no build step. Maps use [Leaflet](https://leafletjs.com) and [OpenStreetMap](https://www.openstreetmap.org).
-  - `data.js`: parks and demo data
-  - `store.js`: app state and actions, saved in the browser
+  - `data.js`: parks and the demo pack
+  - `cloud.js`: [Supabase](https://supabase.com) for name-only sign-in, shared data, photo storage and live updates
+  - `store.js`: blends real people from Supabase with the demo pack; every change the app can make
   - `app.js`: screens and interactions
+- `supabase/migrations/`: the database tables and access rules. Anyone signed in can see the community; people can only change their own data. Apply with `supabase db push`.
 - `ios/`: an earlier native iPhone prototype in SwiftUI (not maintained).
 - Every push to `main` publishes `web/` to GitHub Pages through `.github/workflows/pages.yml`.
+- If Supabase can't be reached, the app falls back to the demo pack so a demo never dead-ends.
 
 To run it locally:
 
