@@ -28,6 +28,12 @@ export const parks = [
     fenced: false, otherDogs: 4,
   },
   {
+    id: 'horse-lot', name: 'Horse Lot Off-Leash Area', area: 'Harleston Village',
+    address: '2 Chisolm St', lat: 32.77442, lng: -79.94154,
+    hours: [['dawn', 'dusk']], hoursText: 'Dawn–dusk',
+    fenced: false, otherDogs: 2,
+  },
+  {
     id: 'ackerman', name: 'Ackerman Park Dog Park', area: 'West Ashley',
     address: '55 Sycamore Ave', lat: 32.78940, lng: -79.98879,
     hours: [['dawn', 'dusk']], hoursText: 'Dawn–dusk',
