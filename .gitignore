@@ -1,0 +1,8 @@
+# Private notes for Claude sessions on this Mac
+CLAUDE.md
+.claude/
+
+# Mac and Xcode clutter
+.DS_Store
+xcuserdata/
+DerivedData/
