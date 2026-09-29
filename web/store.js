@@ -29,7 +29,8 @@ function fresh() {
     posts: seedPosts(now),
     alertParkIds: [...DEFAULT_ALERT_PARKS],
     hiddenAuthorIds: [],
-    prefs: { alerts: true, plus: false, guest: false },
+    autoParkId: null, // the park you were checked into automatically, if any
+    prefs: { alerts: true, plus: false, guest: false, autoCheckIn: false },
   };
 }
 
@@ -42,6 +43,8 @@ function load() {
   }
   const s = saved?.people && saved?.dogs ? saved : fresh();
   s.hiddenAuthorIds ??= [];
+  s.autoParkId ??= null;
+  s.prefs.autoCheckIn ??= false;
   expire(s);
   // Keep the demo lively: if every demo friend has gone home since the last visit, bring a few back.
   if (!s.checkIns.some((c) => c.personId !== s.myId)) {
@@ -181,6 +184,10 @@ export const myCheckIn = () => {
   return c && hydrate(c);
 };
 
+/** The park you were checked into automatically, while you're still checked in there. */
+export const autoParkId = () =>
+  state.autoParkId && myCheckIn()?.parkId === state.autoParkId ? state.autoParkId : null;
+
 export const friendCheckIns = () =>
   allCheckIns().filter((c) => c.personId !== myId() && current(c) && person(c.personId)).sort(newestFirst).map(hydrate);
 
@@ -201,24 +208,24 @@ const isCloudPost = (id) => online && cloud.data.posts.some((p) => p.id === id);
 const uid = () => Math.random().toString(36).slice(2, 10);
 const pick = (list) => list[Math.floor(Math.random() * list.length)];
 
-export async function checkIn(parkId, dogIds) {
+export async function checkIn(parkId, dogIds, { auto = false } = {}) {
   if (online) {
     await cloud.checkIn(parkId, dogIds);
-    notify();
-    return;
+  } else {
+    state.checkIns = state.checkIns.filter((c) => c.personId !== state.myId);
+    state.checkIns.push({ id: uid(), personId: state.myId, dogIds, parkId, arrivedAt: Date.now() });
   }
-  state.checkIns = state.checkIns.filter((c) => c.personId !== state.myId);
-  state.checkIns.push({ id: uid(), personId: state.myId, dogIds, parkId, arrivedAt: Date.now() });
+  state.autoParkId = auto ? parkId : null;
   commit();
 }
 
 export async function checkOut() {
   if (online) {
     await cloud.checkOut();
-    notify();
-    return;
+  } else {
+    state.checkIns = state.checkIns.filter((c) => c.personId !== state.myId);
   }
-  state.checkIns = state.checkIns.filter((c) => c.personId !== state.myId);
+  state.autoParkId = null;
   commit();
 }
 
@@ -321,8 +328,9 @@ export async function tick() {
 
 /** Resets the demo pack. Real people and their data aren't touched. */
 export function reset() {
-  const guest = state.prefs.guest;
+  const { prefs, autoParkId: auto } = state;
   state = fresh();
-  state.prefs.guest = guest;
+  state.prefs = prefs;
+  state.autoParkId = auto;
   commit();
 }

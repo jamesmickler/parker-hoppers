@@ -2,6 +2,7 @@
 
 import { parks, parkById, offLeashStatus, distanceMeters } from './data.js';
 import * as store from './store.js';
+import * as auto from './autocheckin.js';
 
 const $view = document.getElementById('view');
 const $tabs = document.getElementById('tabs');
@@ -229,9 +230,16 @@ function parkScreen(id) {
       ${visitors.length ? visitors.map(visitorRow).join('') : '<div class="row muted">None of your friends are here yet.</div>'}
       ${p.otherDogs ? `<div class="row small muted">🐾 ${p.otherDogs} more pups from outside your network</div>` : ''}
     </div>
+    ${store.state.prefs.autoCheckIn && p.zone && !amHere
+      ? `<button class="link-btn demo-arrive" data-action="pretend-arrive" data-park="${p.id}">Demo: pretend I just walked in</button>`
+      : ''}
     <div class="list-title">Park info</div>
     <div class="list">
       <div class="row"><div class="grow">Hours</div><span class="muted small right">${esc(p.hoursText)}</span></div>
+      <div class="row">
+        <div class="grow">Auto check-in</div>
+        <span class="muted small right">${p.zone ? `Within ${p.zone.radius} m${p.zone.accuracy ? ', outdoors only' : ''}` : 'Check in by hand here'}</span>
+      </div>
       <div class="row">
         <div class="grow">Arrival alerts<div class="small muted">Get a heads-up when friends show up here</div></div>
         ${toggle('toggle-alerts', store.alertsOn(p.id), `data-park="${p.id}"`)}
@@ -355,8 +363,8 @@ function meScreen() {
     <div class="list">
       <div class="row"><div class="grow">Friend arrival alerts</div>${toggle('toggle-pref', prefs.alerts, 'data-pref="alerts"')}</div>
       <div class="row">
-        <div class="grow">Auto check-in at my parks<div class="small muted">Needs the phone app, coming later</div></div>
-        ${toggle('none', false, '', true)}
+        <div class="grow">Auto check-in at my parks<div class="small muted">While Parker Hoppers is open, checks you in when you arrive at a park with 🔔 alerts on</div></div>
+        ${toggle('toggle-auto', prefs.autoCheckIn)}
       </div>
     </div>
     <div class="list-title">Privacy</div>
@@ -430,7 +438,7 @@ const sheets = {
 
   nearby() {
     const p = parkById(sheet.parkId);
-    const atPark = sheet.meters <= 250;
+    const atPark = sheet.meters <= (p.zone?.radius ?? 150);
     return `
       ${sheetHead(atPark ? 'Looks like you’re at the park!' : 'Nearest dog park', { left: '', right: 'Close' })}
       <div class="card center">
@@ -541,29 +549,35 @@ function closeSheet() {
 // ---------- Banner (the pop-down notification) ----------
 
 let bannerTimer;
+let bannerAction = null;
 
-function showBanner(title, message, href = '') {
+/** `action` adds a button to the banner, e.g. { label: 'Undo', run() {...} }. */
+function showBanner(title, message, href = '', action = null) {
+  bannerAction = action;
   $banner.innerHTML = `
     <img class="app-icon" src="icons/icon-192.png" alt="">
     <div class="grow"><b>${esc(title)}</b><span>${esc(message)}</span></div>
-    <span class="small muted">now</span>`;
+    ${action ? `<button class="banner-action">${esc(action.label)}</button>` : '<span class="small muted">now</span>'}`;
   $banner.dataset.href = href;
   $banner.hidden = false;
   $banner.style.animation = 'none';
   void $banner.offsetWidth; // restart the drop-in animation
   $banner.style.animation = '';
   clearTimeout(bannerTimer);
-  bannerTimer = setTimeout(hideBanner, 4500);
+  bannerTimer = setTimeout(hideBanner, action ? 8000 : 4500);
 }
 
 function hideBanner() {
   $banner.hidden = true;
+  bannerAction = null;
 }
 
-$banner.addEventListener('click', () => {
+$banner.addEventListener('click', (e) => {
   const href = $banner.dataset.href;
+  const action = bannerAction;
   hideBanner();
-  if (href) location.hash = href;
+  if (action && e.target.closest('.banner-action')) action.run();
+  else if (href) location.hash = href;
 });
 
 // ---------- Maps ----------
@@ -672,6 +686,38 @@ function simulate() {
   announceArrival(store.simulateArrival());
 }
 
+// ---------- Automatic check-in ----------
+
+async function autoArrive(park) {
+  const dogs = store.myDogs();
+  if (!dogs.length || route.name === 'join' || store.myCheckIn()) return;
+  if (!(await run(() => store.checkIn(park.id, dogs.map((d) => d.id), { auto: true })))) return;
+  navigator.vibrate?.(60);
+  showBanner(`You’re at ${park.name}`, `Checked in ${dogNames(dogs)} automatically.`, `#/park/${park.id}`, {
+    label: 'Undo',
+    run: () => run(() => store.checkOut()),
+  });
+}
+
+async function autoLeave(park) {
+  if (await run(() => store.checkOut())) {
+    showBanner('Checked out', `Looks like you left ${park.name}. See you next time! 🐾`);
+  }
+}
+
+function startAutoCheckIn() {
+  return auto.start({
+    watching: () => (store.myCheckIn() ? [] : parks.filter((p) => store.alertsOn(p.id))),
+    autoParkId: store.autoParkId,
+    arrive: autoArrive,
+    leave: autoLeave,
+    denied() {
+      store.setPref('autoCheckIn', false);
+      showBanner('Location is off', 'Allow location access for this site to use auto check-in.');
+    },
+  });
+}
+
 function locate() {
   if (!navigator.geolocation) {
     showBanner('Location isn’t available', 'This browser can’t share your location.');
@@ -716,6 +762,9 @@ const actions = {
   invite,
   async checkout() {
     if (await run(() => store.checkOut())) showBanner('Checked out', 'Thanks for hopping by! 🐾');
+  },
+  'pretend-arrive'(el) {
+    autoArrive(parkById(el.dataset.park));
   },
   'look-around'() {
     store.lookAround();
@@ -767,6 +816,22 @@ const actions = {
 const changes = {
   'toggle-alerts': (el) => store.toggleAlerts(el.dataset.park),
   'toggle-pref': (el) => store.setPref(el.dataset.pref, el.checked),
+  'toggle-auto'(el) {
+    store.setPref('autoCheckIn', el.checked);
+    if (!el.checked) {
+      auto.stop();
+      return;
+    }
+    if (!startAutoCheckIn()) {
+      store.setPref('autoCheckIn', false);
+      showBanner('Location isn’t available', 'This browser can’t share your location.');
+      return;
+    }
+    const mine = parks.filter((p) => store.alertsOn(p.id) && p.zone).map((p) => p.name);
+    showBanner('Auto check-in is on', mine.length
+      ? `While the app is open, you’ll be checked in at ${new Intl.ListFormat('en').format(mine)}.`
+      : 'Turn on 🔔 Arrival alerts for a park to use it there.');
+  },
   async 'pick-photo'(el) {
     const file = el.files[0];
     if (!file) return;
@@ -877,6 +942,7 @@ renderView();
 if (status === 'offline') {
   showBanner('Showing the demo pack', 'Couldn’t reach the Parker Hoppers server, so real people won’t appear.');
 }
+if (store.state.prefs.autoCheckIn) startAutoCheckIn();
 
 setInterval(store.tick, 60_000);
 

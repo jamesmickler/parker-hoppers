@@ -11,6 +11,7 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
 - **Join:** type your first name and your dog's name. There's no email or password. Or tap **Just look around first** to explore with demo data.
 - **Parks:** a map and list of dog parks with how many pups are there, and which friends. Tap the 🔔 button to simulate a demo friend arriving.
 - **Check in:** open a park, tap **We're here!** and pick which dogs came along. Everyone with Hazel Parker or Cannon Park alerts on gets a "just arrived!" notice within a second or two.
+- **Auto check-in:** turn it on under **Me**. While the app is open, it checks you in after about 45 seconds inside a park you have 🔔 alerts on for, and out again 2 minutes after you leave, with an **Undo** button every time. Each park has its own zone; The Jasper's is 20 m and only trusts precise outdoor GPS, so being inside the building doesn't count. On a park's page, **Demo: pretend I just walked in** shows it off in a classroom.
 - **Find my park:** the 📍 button uses your location to find the nearest dog park.
 - **Moments:** share a photo from the park, like posts, and report or hide posts.
 - **Plus:** the premium tier, with a home-screen widget preview.

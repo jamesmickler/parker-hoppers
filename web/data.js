@@ -2,36 +2,38 @@
 // Charleston County Parks), plus The Jasper's residents-only dog park. The demo pack's
 // people, dogs and posts are made up.
 
+// `zone` is the circle (in meters) where automatic check-in kicks in, and `accuracy` the
+// worst GPS precision it will trust there. `zone: null` means manual check-in only.
 export const parks = [
   {
     id: 'hazel-parker', name: 'Hazel Parker Off-Leash Area', area: 'French Quarter',
     address: '70 E Bay St', lat: 32.77483, lng: -79.92624,
     hours: [['dawn', 9], [17, 'dusk']], hoursText: 'Dawn–9 AM and 5 PM–dusk',
-    fenced: false, otherDogs: 3,
+    fenced: false, otherDogs: 3, zone: { radius: 60 },
   },
   {
     id: 'cannon-park', name: 'Cannon Park', area: 'Harleston Village',
     address: '131 Rutledge Ave', lat: 32.78287, lng: -79.94416,
     hours: [['dawn', 9], [17, 'dusk']], hoursText: 'Dawn–9 AM and 5 PM–dusk',
-    fenced: false, otherDogs: 5,
+    fenced: false, otherDogs: 5, zone: { radius: 80 },
   },
   {
     id: 'brittlebank', name: 'Brittlebank Park', area: 'West Side',
     address: '185 Lockwood Dr', lat: 32.78802, lng: -79.96057,
     hours: [['dawn', 'dusk']], hoursText: 'Dawn–dusk',
-    fenced: false, otherDogs: 2,
+    fenced: false, otherDogs: 2, zone: { radius: 120 },
   },
   {
     id: 'white-point', name: 'White Point Garden', area: 'South of Broad',
     address: '2 Murray Blvd', lat: 32.76981, lng: -79.93035,
     hours: [['dawn', 9], [17, 23]], hoursText: 'Dawn–9 AM and 5–11 PM',
-    fenced: false, otherDogs: 4,
+    fenced: false, otherDogs: 4, zone: { radius: 100 },
   },
   {
     id: 'horse-lot', name: 'Horse Lot Off-Leash Area', area: 'Harleston Village',
     address: '2 Chisolm St', lat: 32.77442, lng: -79.94154,
     hours: [['dawn', 'dusk']], hoursText: 'Dawn–dusk',
-    fenced: false, otherDogs: 2,
+    fenced: false, otherDogs: 2, zone: { radius: 50 },
   },
   {
     // Amenity at The Jasper apartments, not on the city's public list.
@@ -39,18 +41,23 @@ export const parks = [
     address: '310 Broad St', lat: 32.77644, lng: -79.94311,
     hours: null, hoursText: 'Set by the building', access: 'Residents only',
     fenced: null, otherDogs: 2,
+    // Tight circle on the dog run itself, trusting only precise (outdoor) GPS, so being
+    // inside the building doesn't count.
+    zone: { radius: 20, accuracy: 15 },
   },
   {
     id: 'ackerman', name: 'Ackerman Park Dog Park', area: 'West Ashley',
     address: '55 Sycamore Ave', lat: 32.78940, lng: -79.98879,
     hours: [['dawn', 'dusk']], hoursText: 'Dawn–dusk',
-    fenced: true, otherDogs: 1,
+    fenced: true, otherDogs: 1, zone: { radius: 90 },
   },
   {
     id: 'james-island', name: 'James Island County Park Dog Park', area: 'James Island',
     address: '871 Riverland Dr', lat: 32.73485, lng: -79.98947,
     hours: null, hoursText: 'County park hours · small entry fee',
     fenced: true, otherDogs: 6,
+    // Where the dog park sits inside the 600-acre county park isn't mapped, so no auto check-in.
+    zone: null,
   },
 ];
 

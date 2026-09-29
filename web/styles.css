@@ -363,6 +363,13 @@ h1.title { font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 
 .banner b { display: block; font-size: 15px; }
 .banner span { font-size: 14px; }
 .banner .grow span { color: var(--muted); }
+.banner-action {
+  border: 0; border-radius: 999px; flex: none;
+  background: var(--accent); color: #fff;
+  font-size: 14px; font-weight: 700;
+  padding: 7px 14px;
+}
+.demo-arrive { display: block; margin: 14px auto 0; font-size: 15px; }
 @keyframes drop {
   from { transform: translate(-50%, -130%); opacity: 0; }
   to { transform: translate(-50%, 0); opacity: 1; }
