@@ -6,16 +6,26 @@ struct ParkDetailView: View {
     let park: Park
     @State private var showingCheckIn = false
 
+    private var amHere: Bool { state.myCheckIn?.parkID == park.id }
+
+    private var directions: URL {
+        URL(string: "https://maps.apple.com/?daddr=\(park.latitude),\(park.longitude)&q=\(park.name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")")!
+    }
+
     var body: some View {
         let visitors = state.visitors(at: park)
-        let amHere = state.myCheckIn?.parkID == park.id
-
+        let count = state.dogCount(at: park)
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                Map(initialPosition: .region(MKCoordinateRegion(
-                    center: park.coordinate, latitudinalMeters: 800, longitudinalMeters: 800))) {
+            VStack(alignment: .leading, spacing: 16) {
+                Map(initialPosition: .region(MKCoordinateRegion(center: park.coordinate, latitudinalMeters: 700, longitudinalMeters: 700))) {
                     Annotation(park.name, coordinate: park.coordinate) {
-                        ParkPin(count: state.dogCount(at: park))
+                        ParkPin(count: count, friendsHere: !visitors.isEmpty)
+                    }
+                    .annotationTitles(.hidden)
+                    if let zone = park.zone {
+                        MapCircle(center: park.coordinate, radius: zone.radius)
+                            .foregroundStyle(Color.accentColor.opacity(0.15))
+                            .stroke(Color.accentColor, lineWidth: 1)
                     }
                 }
                 .frame(height: 180)
@@ -23,96 +33,116 @@ struct ParkDetailView: View {
                 .allowsHitTesting(false)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(park.name)
-                        .font(.title2.bold())
-                    Text(park.neighborhood)
-                        .foregroundStyle(.secondary)
+                    Text(park.name).font(.title2.bold())
+                    Text("\(park.area) · \(park.address)").foregroundStyle(.secondary)
                 }
 
-                if amHere {
-                    Button(role: .destructive) {
-                        withAnimation { state.checkOut() }
-                    } label: {
-                        Label("Check out", systemImage: "figure.walk.departure")
-                            .frame(maxWidth: .infinity)
+                HStack(spacing: 8) {
+                    if let access = park.access { Badge(text: "🔒 \(access)") }
+                    if let status = park.offLeashStatus() { Badge(text: status.text, highlighted: status.open) }
+                    if let fenced = park.fenced { Badge(text: fenced ? "Fenced" : "Open field") }
+                }
+
+                HStack(spacing: 10) {
+                    if amHere {
+                        Button(role: .destructive) {
+                            Task {
+                                if await state.attempt({ try await state.checkOut() }) {
+                                    state.showBanner("Checked out", "Thanks for hopping by! 🐾")
+                                }
+                            }
+                        } label: {
+                            Text("Check out").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                    } else {
+                        Button {
+                            showingCheckIn = true
+                        } label: {
+                            Label("We’re here!", systemImage: "pawprint.fill").frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    Link(destination: directions) {
+                        Image(systemName: "location.north.line.fill").frame(width: 30)
                     }
                     .buttonStyle(.bordered)
-                    .controlSize(.large)
-                } else {
-                    Button {
-                        showingCheckIn = true
-                    } label: {
-                        Label("We're here!", systemImage: "pawprint.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.large)
+                    .accessibilityLabel("Directions")
                 }
+                .controlSize(.large)
 
-                VStack(alignment: .leading, spacing: 14) {
-                    Text("At the park now")
-                        .font(.headline)
+                Text("At the park now").font(.headline).padding(.top, 6)
+                Card {
                     if visitors.isEmpty {
-                        Text("None of your friends are here yet.")
-                            .foregroundStyle(.secondary)
-                    }
-                    ForEach(visitors) { visit in
-                        VisitorRow(checkIn: visit, isMe: visit.person.id == state.me.id)
-                    }
-                    if park.otherDogCount > 0 {
-                        Label("\(park.otherDogCount) more pups from outside your network",
-                              systemImage: "pawprint")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                        Text("No one’s checked in here yet.").foregroundStyle(.secondary)
+                    } else {
+                        VStack(alignment: .leading, spacing: 14) {
+                            ForEach(visitors) { visit in
+                                VisitorRow(checkIn: visit)
+                            }
+                        }
                     }
                 }
-                .padding()
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
 
-                Toggle(isOn: alertsBinding) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Arrival alerts")
-                        Text("Get notified when friends show up here")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                if state.prefs.autoCheckIn && park.zone != nil && !amHere {
+                    Button("Demo: pretend I just walked in") {
+                        state.autoCheckIn.pretendArrival(at: park)
                     }
+                    .frame(maxWidth: .infinity)
                 }
-                .padding()
+
+                Text("PARK INFO").font(.footnote).foregroundStyle(.secondary).padding(.top, 8)
+                VStack(spacing: 0) {
+                    InfoRow(label: "Hours", value: park.hoursText)
+                    Divider().padding(.leading)
+                    InfoRow(label: "Auto check-in", value: park.zone.map {
+                        "Within \(Int($0.radius)) m\($0.maxAccuracy != nil ? ", outdoors only" : "")"
+                    } ?? "Check in by hand here")
+                    Divider().padding(.leading)
+                    Toggle(isOn: Binding(get: { state.alertsOn(park) }, set: { _ in state.toggleAlerts(park) })) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Arrival alerts")
+                            Text("Get a heads-up when friends show up here").font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding()
+                }
                 .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
             }
             .padding()
         }
         .background(Color(.systemGroupedBackground))
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showingCheckIn) {
-            CheckInSheet(park: park)
-        }
+        .sheet(isPresented: $showingCheckIn) { CheckInSheet(park: park) }
     }
+}
 
-    private var alertsBinding: Binding<Bool> {
-        Binding(
-            get: { state.myParkIDs.contains(park.id) },
-            set: { _ in state.toggleAlerts(for: park) }
-        )
+private struct InfoRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text(value).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.trailing)
+        }
+        .padding()
     }
 }
 
 private struct VisitorRow: View {
+    @Environment(AppState.self) private var state
     let checkIn: CheckIn
-    var isMe = false
 
     var body: some View {
+        let dogs = state.dogs(of: checkIn)
+        let who = checkIn.personID == state.myID ? "You" : "with \(state.person(checkIn.personID)?.name ?? "someone")"
         HStack(spacing: 12) {
-            DogStack(dogs: checkIn.dogs, size: 40)
+            DogStack(dogs: dogs, size: 40)
             VStack(alignment: .leading, spacing: 2) {
-                Text(dogNames(checkIn.dogs))
-                    .font(.headline)
-                Text(isMe
-                     ? "You · arrived \(timeAgo(checkIn.arrivedAt))"
-                     : "with \(checkIn.person.name) · arrived \(timeAgo(checkIn.arrivedAt))")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text(dogNames(dogs)).font(.headline)
+                Text("\(who) · arrived \(timeAgo(checkIn.arrivedAt))").font(.subheadline).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
         }
@@ -123,24 +153,20 @@ struct CheckInSheet: View {
     @Environment(AppState.self) private var state
     @Environment(\.dismiss) private var dismiss
     let park: Park
-    @State private var selected: Set<Dog.ID> = []
+    @State private var selected: Set<String> = []
+    @State private var saving = false
 
     var body: some View {
         NavigationStack {
             List {
                 Section {
-                    ForEach(state.me.dogs) { dog in
+                    ForEach(state.myDogs) { dog in
                         Button {
-                            if selected.contains(dog.id) {
-                                selected.remove(dog.id)
-                            } else {
-                                selected.insert(dog.id)
-                            }
+                            if selected.contains(dog.id) { selected.remove(dog.id) } else { selected.insert(dog.id) }
                         } label: {
                             HStack(spacing: 12) {
                                 DogAvatar(dog: dog, size: 36)
-                                Text(dog.name)
-                                    .foregroundStyle(.primary)
+                                Text(dog.name).foregroundStyle(.primary)
                                 Spacer()
                                 Image(systemName: selected.contains(dog.id) ? "checkmark.circle.fill" : "circle")
                                     .font(.title3)
@@ -149,28 +175,31 @@ struct CheckInSheet: View {
                         }
                     }
                 } header: {
-                    Text("Who's coming along?")
+                    Text("Who’s coming along?")
                 } footer: {
-                    Text("Your friends will see you here. You'll be checked out automatically after 90 minutes.")
+                    Text("Your friends will see you here. You’ll be checked out automatically after 90 minutes.")
                 }
             }
             .navigationTitle(park.name)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Check in") {
-                        state.checkIn(at: park, with: state.me.dogs.filter { selected.contains($0.id) })
-                        dismiss()
+                    Button(saving ? "Saving…" : "Check in") {
+                        Task {
+                            saving = true
+                            let dogs = state.myDogs.filter { selected.contains($0.id) }
+                            if await state.attempt({ try await state.checkIn(park: park, dogIDs: dogs.map(\.id)) }) {
+                                dismiss()
+                                state.showBanner("You’re checked in!", "Friends can now see \(dogNames(dogs)) at \(park.name).")
+                            }
+                            saving = false
+                        }
                     }
-                    .disabled(selected.isEmpty)
+                    .disabled(selected.isEmpty || saving)
                 }
             }
-            .onAppear {
-                selected = Set(state.me.dogs.map(\.id))
-            }
+            .onAppear { selected = Set(state.myDogs.map(\.id)) }
         }
         .presentationDetents([.medium])
     }

@@ -26,7 +26,7 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
   - `store.js`: blends real people from Supabase with the demo pack; every change the app can make
   - `app.js`: screens and interactions
 - `supabase/migrations/`: the database tables and access rules. Anyone signed in can see the community; people can only change their own data. Apply with `supabase db push`.
-- `ios/`: an earlier native iPhone prototype in SwiftUI (not maintained).
+- `ios/`: the native iPhone app in SwiftUI. It uses the same Supabase data as the website, so web and iPhone users see each other live, and it adds automatic check-in that works with your phone in your pocket: iOS wakes the app near one of your parks, then precise GPS confirms you're inside the park's own zone. It has no third-party libraries; `ios/ParkerHoppers/Supabase/` is a small built-in Supabase client.
 - Every push to `main` publishes `web/` to GitHub Pages through `.github/workflows/pages.yml`.
 - If Supabase can't be reached, the app falls back to the demo pack so a demo never dead-ends.
 

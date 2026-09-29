@@ -8,16 +8,15 @@ struct FriendsView: View {
             List {
                 Section("At the park now") {
                     if state.friendCheckIns.isEmpty {
-                        Text("No friends at the park right now.")
-                            .foregroundStyle(.secondary)
+                        Text("No friends at the park right now.").foregroundStyle(.secondary)
                     }
                     ForEach(state.friendCheckIns) { visit in
+                        let dogs = state.dogs(of: visit)
                         HStack(spacing: 12) {
-                            DogStack(dogs: visit.dogs, size: 40)
+                            DogStack(dogs: dogs, size: 40)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(visit.person.name) & \(dogNames(visit.dogs))")
-                                    .font(.headline)
-                                Text("\(state.park(id: visit.parkID)?.name ?? "A park") · \(timeAgo(visit.arrivedAt))")
+                                Text("\(state.person(visit.personID)?.name ?? "") & \(dogNames(dogs))").font(.headline)
+                                Text("\(Park.find(visit.parkID)?.name ?? "") · \(timeAgo(visit.arrivedAt))")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
@@ -28,17 +27,27 @@ struct FriendsView: View {
 
                 Section("Your pack") {
                     ForEach(state.friends) { friend in
+                        let dogs = friend.dogIDs.compactMap(state.dog)
                         HStack(spacing: 12) {
-                            DogStack(dogs: friend.dogs, size: 40)
+                            DogStack(dogs: dogs, size: 40)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(friend.name)
-                                    .font(.headline)
-                                Text(friend.dogs.map { "\($0.name) the \($0.breed)" }.joined(separator: ", "))
+                                HStack(spacing: 6) {
+                                    Text(friend.name).font(.headline)
+                                    if friend.isDemo {
+                                        Text("DEMO")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.secondary)
+                                            .padding(.horizontal, 6)
+                                            .padding(.vertical, 2)
+                                            .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 6))
+                                    }
+                                }
+                                Text(dogs.map { "\($0.name) the \($0.breed)" }.joined(separator: ", "))
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 0)
-                            if state.currentCheckIn(for: friend) != nil {
+                            if state.checkIn(for: friend.id) != nil {
                                 Text("At park")
                                     .font(.caption.bold())
                                     .foregroundStyle(Color.accentColor)
@@ -52,9 +61,11 @@ struct FriendsView: View {
                 }
             }
             .navigationTitle("Friends")
+            .refreshable { await state.refresh() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    ShareLink(item: "Join my pack on Parker Hoppers so our dogs can meet up at the park! 🐾") {
+                    ShareLink(item: URL(string: "https://jamesmickler.github.io/parker-hoppers/")!,
+                              message: Text("Join my pack on Parker Hoppers so our dogs can meet up at the park! 🐾")) {
                         Label("Invite a friend", systemImage: "person.badge.plus")
                     }
                 }

@@ -189,7 +189,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ParkerHoppers-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Parker Hoppers";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "With Always, Parker Hoppers can check you in automatically when you walk into one of your parks, even with the app closed.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Parker Hoppers uses your location to tell which dog park you are at.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -216,7 +219,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "ParkerHoppers-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "Parker Hoppers";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "With Always, Parker Hoppers can check you in automatically when you walk into one of your parks, even with the app closed.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Parker Hoppers uses your location to tell which dog park you are at.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
