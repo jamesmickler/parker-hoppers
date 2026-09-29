@@ -186,13 +186,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FBWYJ6Y4PC;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ParkerHoppers-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Parker Hoppers";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "With Always, Parker Hoppers can check you in automatically when you walk into one of your parks, even with the app closed.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Parker Hoppers uses your location to tell which dog park you are at.";
+				INFOPLIST_KEY_CFBundleDisplayName = "Park Hoppers";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "With Always, Park Hoppers can check you in automatically when you walk into one of your parks, even with the app closed.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Park Hoppers uses your location to tell which dog park you are at.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -202,7 +203,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.parkerhoppers.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jamesmickler.parkerhoppers;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -216,13 +217,14 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FBWYJ6Y4PC;
 				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "ParkerHoppers-Info.plist";
-				INFOPLIST_KEY_CFBundleDisplayName = "Parker Hoppers";
-				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "With Always, Parker Hoppers can check you in automatically when you walk into one of your parks, even with the app closed.";
-				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Parker Hoppers uses your location to tell which dog park you are at.";
+				INFOPLIST_KEY_CFBundleDisplayName = "Park Hoppers";
+				INFOPLIST_KEY_NSLocationAlwaysAndWhenInUseUsageDescription = "With Always, Park Hoppers can check you in automatically when you walk into one of your parks, even with the app closed.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Park Hoppers uses your location to tell which dog park you are at.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -232,7 +234,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 0.1;
-				PRODUCT_BUNDLE_IDENTIFIER = com.parkerhoppers.app;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jamesmickler.parkerhoppers;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

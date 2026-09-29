@@ -30,7 +30,9 @@ struct ParksView: View {
                         }
                     }
 
-                    Text("Public park locations and hours come from the City of Charleston and Charleston County Parks. Tap 🔔 to have a made-up demo friend (Maya, Theo, Priya, Sam or Dana) arrive. Everyone else is a real person who joined.")
+                    Text("Public park locations and hours come from the City of Charleston and Charleston County Parks." + (state.prefs.demoMode
+                        ? " Demo Mode is on: tap Demo to have a made-up friend (Maya, Theo, Priya, Sam or Dana) arrive."
+                        : ""))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .padding(.top, 12)
@@ -38,22 +40,33 @@ struct ParksView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Parker Hoppers")
+            .navigationTitle("Park Hoppers")
             .navigationDestination(for: Park.self) { park in
                 ParkDetailView(park: park)
             }
             .refreshable { await state.refresh() }
             .toolbar {
-                ToolbarItemGroup(placement: .topBarTrailing) {
+                if state.prefs.demoMode {
+                    // Labeled "Demo" so it isn't mistaken for notifications.
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            state.simulateArrival()
+                        } label: {
+                            // Built by hand: toolbars shrink a plain Label down to just its icon.
+                            HStack(spacing: 4) {
+                                Image(systemName: "bell.badge")
+                                Text("Demo").fontWeight(.semibold)
+                            }
+                            .padding(.horizontal, 4)
+                        }
+                        .accessibilityLabel("Demo: a friend arrives")
+                    }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await locate() }
                     } label: {
                         Label("Find the park I’m at", systemImage: locating ? "location.fill" : "location")
-                    }
-                    Button {
-                        state.simulateArrival()
-                    } label: {
-                        Label("Demo: a friend arrives", systemImage: "bell.badge")
                     }
                 }
             }
@@ -72,7 +85,7 @@ struct ParksView: View {
         locating = true
         defer { locating = false }
         guard let here = await OneShotLocation().current() else {
-            state.showBanner("Couldn’t find your location", "Allow location access for Parker Hoppers in Settings, then try again.")
+            state.showBanner("Couldn’t find your location", "Allow location access for Park Hoppers in Settings, then try again.")
             return
         }
         let ranked = Park.all.map { ($0, here.distance(from: $0.location)) }.sorted { $0.1 < $1.1 }

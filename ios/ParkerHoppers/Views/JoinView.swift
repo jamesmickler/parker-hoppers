@@ -25,7 +25,7 @@ struct JoinView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 20))
                     .shadow(color: .orange.opacity(0.35), radius: 12, y: 6)
                     .padding(.top, 40)
-                Text("Parker Hoppers").font(.largeTitle.bold())
+                Text("Park Hoppers").font(.largeTitle.bold())
                 Text("See when your friends’ dogs are at the park, so you can meet up.")
                     .multilineTextAlignment(.center)
                     .foregroundStyle(.secondary)
@@ -50,7 +50,7 @@ struct JoinView: View {
                 .controlSize(.large)
                 .disabled(!ready || saving)
 
-                Text("No email or password. Everyone testing Parker Hoppers can see your first name, your dogs, and the park you check in at.")
+                Text("No email or password. Everyone testing Park Hoppers can see your first name, your dogs, and the park you check in at.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)

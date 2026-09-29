@@ -29,7 +29,8 @@ function fresh() {
     alertParkIds: [...DEFAULT_ALERT_PARKS],
     hiddenAuthorIds: [],
     autoParkId: null, // the park you were checked into automatically, if any
-    prefs: { alerts: true, plus: false, guest: false, autoCheckIn: false },
+    // demoMode shows the demo pack and the "a friend arrives" button, for presentations.
+    prefs: { alerts: true, plus: false, guest: false, autoCheckIn: false, demoMode: false },
   };
 }
 
@@ -44,6 +45,7 @@ function load() {
   s.hiddenAuthorIds ??= [];
   s.autoParkId ??= null;
   s.prefs.autoCheckIn ??= false;
+  s.prefs.demoMode ??= false;
   // Version 2: the demo pack no longer starts out at the parks or with posts, and Horse Lot and
   // The Jasper joined "Your parks". Clean that out of browsers that saved the old version.
   if ((s.version ?? 1) < 2) {
@@ -155,14 +157,18 @@ export const me = () => person(myId());
 export const myDogs = () => (me()?.dogIds ?? []).map(dog).filter(Boolean);
 export const alertsOn = (parkId) => state.alertParkIds.includes(parkId);
 
+export const demoMode = () => state.prefs.demoMode;
+
 export function friends() {
   const real = online ? Object.values(cloud.data.profiles).filter((p) => p.id !== myId()) : [];
-  return [...real, ...state.friendIds.map((id) => state.people[id])];
+  const demo = demoMode() ? state.friendIds.map((id) => state.people[id]) : [];
+  return [...real, ...demo];
 }
 
 function allCheckIns() {
-  const demo = state.checkIns.filter((c) => !isDemoMe(c.personId));
-  return online ? [...demo, ...cloud.data.checkIns] : demo;
+  const local = state.checkIns.filter((c) =>
+    !isDemoMe(c.personId) && (demoMode() || !state.friendIds.includes(c.personId)));
+  return online ? [...local, ...cloud.data.checkIns] : local;
 }
 
 const hydrate = (c) => ({ ...c, person: person(c.personId), dogs: c.dogIds.map(dog).filter(Boolean) });
@@ -328,11 +334,15 @@ export async function tick() {
   else notify();
 }
 
-/** Resets the demo pack. Real people and their data aren't touched. */
-export function reset() {
-  const { prefs, autoParkId: auto } = state;
-  state = fresh();
-  state.prefs = prefs;
-  state.autoParkId = auto;
+/** Sends every demo friend home. Real people and their data aren't touched. */
+export function sendDemoPackHome() {
+  state.checkIns = state.checkIns.filter((c) => !state.friendIds.includes(c.personId));
+  commit();
+}
+
+/** Demo Mode on shows the demo pack and its button; off hides them and sends the pack home. */
+export function setDemoMode(on) {
+  state.prefs.demoMode = on;
+  if (!on) state.checkIns = state.checkIns.filter((c) => !state.friendIds.includes(c.personId));
   commit();
 }

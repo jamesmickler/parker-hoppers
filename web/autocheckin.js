@@ -1,7 +1,7 @@
 // Automatic check-in while the app is open. Watches your location and checks you in once
 // you've stayed inside one of your parks' zones for a bit, and out again once you've
 // clearly left. Phones stop sharing a website's location when the screen locks, so this
-// only works while Parker Hoppers is on screen; true background check-in needs a native app.
+// only works while Park Hoppers is on screen; true background check-in needs a native app.
 
 import { parks, distanceMeters } from './data.js';
 

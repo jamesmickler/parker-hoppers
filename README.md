@@ -1,22 +1,22 @@
-# Parker Hoppers 🐾
+# Park Hoppers 🐾
 
-Parker Hoppers turns spontaneous dog park visits into planned reunions. Check in when you get to the park, and friends in your network find out that your pup is there. It works the way parents coordinate playdates, but for dogs.
+Park Hoppers turns spontaneous dog park visits into planned reunions. Check in when you get to the park, and friends in your network find out that your pup is there. It works the way parents coordinate playdates, but for dogs.
 
-This is a working prototype. The parks are real Charleston off-leash areas, plus The Jasper's residents-only dog run. Everyone and every dog you see at a park is a real person who joined, shared live between phones. The only exception is a made-up "demo pack" (Maya, Theo, Priya, Sam and Dana, marked **demo**), who show up only when you tap 🔔 to demo an arrival.
+This is a working prototype. The parks are real Charleston off-leash areas, plus The Jasper's residents-only dog run. Everyone and every dog you see at a park is a real person who joined, shared live between phones. The only exception is a made-up "demo pack" (Maya, Theo, Priya, Sam and Dana, marked **demo**), who show up only when **Demo Mode** is on (Me tab), for showing off arrival alerts in a presentation.
 
 ## Try it
 
 Open the live site on a phone for the best experience. On iPhone, tap Share → **Add to Home Screen** and it opens like an app.
 
 - **Join:** type your first name and your dog's name. There's no email or password. Or tap **Just look around first** to explore with demo data.
-- **Parks:** a map and list of dog parks with how many pups are there, and which friends. Tap the 🔔 button to simulate a demo friend arriving.
+- **Parks:** a map and list of dog parks with how many pups are there, and which friends. With Demo Mode on, a **🔔 Demo** button makes a made-up friend arrive.
 - **Check in:** open a park, tap **We're here!** and pick which dogs came along. Everyone with Hazel Parker or Cannon Park alerts on gets a "just arrived!" notice within a second or two.
 - **Auto check-in:** turn it on under **Me**. While the app is open, it checks you in after about 45 seconds inside a park you have 🔔 alerts on for, and out again 2 minutes after you leave, with an **Undo** button every time. Each park has its own zone; The Jasper's is 20 m and only trusts precise outdoor GPS, so being inside the building doesn't count. On a park's page, **Demo: pretend I just walked in** shows it off in a classroom.
 - **Find my park:** the 📍 button uses your location to find the nearest dog park.
 - **Moments:** share a photo from the park, like posts, and report or hide posts.
 - **Plus:** the premium tier, with a home-screen widget preview.
 
-**Me → Leave Parker Hoppers** deletes your name, dogs, check-ins and posts.
+**Me → Leave Park Hoppers** deletes your name, dogs, check-ins and posts.
 
 ## How it's built
 

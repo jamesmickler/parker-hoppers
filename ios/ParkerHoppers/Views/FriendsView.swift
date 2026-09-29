@@ -65,7 +65,7 @@ struct FriendsView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     ShareLink(item: URL(string: "https://jamesmickler.github.io/parker-hoppers/")!,
-                              message: Text("Join my pack on Parker Hoppers so our dogs can meet up at the park! 🐾")) {
+                              message: Text("Join my pack on Park Hoppers so our dogs can meet up at the park! 🐾")) {
                         Label("Invite a friend", systemImage: "person.badge.plus")
                     }
                 }

@@ -30,7 +30,7 @@ struct MeView: View {
                         HStack(spacing: 12) {
                             Image("AppIconSmall").resizable().frame(width: 44, height: 44).clipShape(RoundedRectangle(cornerRadius: 10))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(state.prefs.isPlus ? "You have Parker Hoppers Plus" : "Get Parker Hoppers Plus")
+                                Text(state.prefs.isPlus ? "You have Park Hoppers Plus" : "Get Park Hoppers Plus")
                                     .font(.headline)
                                     .foregroundStyle(.primary)
                                 Text("Home-screen widget, instant alerts, AirTag sharing help")
@@ -73,28 +73,43 @@ struct MeView: View {
                 }
 
                 Section {
-                    Button("Leave Parker Hoppers", role: .destructive) { confirmingLeave = true }
+                    Button("Leave Park Hoppers", role: .destructive) { confirmingLeave = true }
                 } header: {
                     Text("Account")
                 } footer: {
-                    Text("Deletes your name, dogs, check-ins and posts from Parker Hoppers.")
+                    Text("Deletes your name, dogs, check-ins and posts from Park Hoppers.")
                 }
 
                 Section {
-                    Button("Reset demo pack", role: .destructive) {
-                        state.resetDemoPack()
-                        state.showBanner("Demo pack reset", "Maya, Theo and friends went home.")
+                    Toggle(isOn: Binding(
+                        get: { state.prefs.demoMode },
+                        set: { on in
+                            state.setDemoMode(on)
+                            state.showBanner(on ? "Demo Mode is on" : "Demo Mode is off",
+                                             on ? "Tap Demo on the Parks tab to have a made-up friend arrive." : "The demo friends are gone.")
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Demo Mode")
+                            Text("Adds a Demo button on the Parks tab that makes a made-up friend arrive, so you can show off alerts without a second phone")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    if state.prefs.demoMode {
+                        Button("Send demo friends home", role: .destructive) {
+                            state.resetDemoPack()
+                            state.showBanner("Demo friends went home", "Maya, Theo and friends left the parks.")
+                        }
                     }
                 } header: {
-                    Text("Demo pack")
-                } footer: {
-                    Text("Sends Maya, Theo and the other made-up friends home. Real people aren’t affected.")
+                    Text("Presenting")
                 }
             }
             .navigationTitle(state.me?.name ?? "Me")
             .sheet(isPresented: $showingPlus) { PlusView() }
             .sheet(isPresented: $showingAddDog) { AddDogSheet() }
-            .confirmationDialog("Leave Parker Hoppers?", isPresented: $confirmingLeave, titleVisibility: .visible) {
+            .confirmationDialog("Leave Park Hoppers?", isPresented: $confirmingLeave, titleVisibility: .visible) {
                 Button("Leave and delete my data", role: .destructive) {
                     Task { await state.attempt { try await state.leave() } }
                 }
@@ -116,7 +131,7 @@ private struct AutoCheckInStatus: View {
             ("Location: Always, but this device can’t watch parks in the background (the Simulator can’t). It checks you in while the app is open.", false)
         case .authorizedAlways: ("Location: Always ✓ Works with the app closed.", false)
         case .authorizedWhenInUse: ("Location: While Using. It only works while the app is open. Choose “Always” in Settings for pocket check-ins.", true)
-        case .denied, .restricted: ("Location is off for Parker Hoppers. Turn it on in Settings.", true)
+        case .denied, .restricted: ("Location is off for Park Hoppers. Turn it on in Settings.", true)
         default: ("Waiting for location permission…", false)
         }
         VStack(alignment: .leading, spacing: 6) {

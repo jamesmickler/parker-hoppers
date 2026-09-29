@@ -15,7 +15,7 @@ struct SupabaseError: LocalizedError {
     var errorDescription: String? { message }
 }
 
-/// A small Supabase client covering what Parker Hoppers needs: name-only (anonymous) sign-in,
+/// A small Supabase client covering what Park Hoppers needs: name-only (anonymous) sign-in,
 /// reading and writing rows, and uploading photos. Live updates are in Realtime.swift.
 @MainActor
 final class SupabaseClient {

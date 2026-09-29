@@ -9,7 +9,7 @@ struct CloudSnapshot {
     var reportedPostIDs: Set<String> = []
 }
 
-/// Reads and writes Parker Hoppers data in Supabase.
+/// Reads and writes Park Hoppers data in Supabase.
 @MainActor
 enum Cloud {
     private static var db: SupabaseClient { .shared }

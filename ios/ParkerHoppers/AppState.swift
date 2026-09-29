@@ -30,6 +30,23 @@ final class AppState {
         var hiddenAuthorIDs: Set<String> = []
         /// The park you were checked into automatically, if any.
         var autoParkID: String?
+        /// Shows the demo pack and the "a friend arrives" button, for presentations.
+        var demoMode = false
+
+        init() {}
+
+        /// Settings saved by an older version may be missing newer ones; keep what's there.
+        init(from decoder: Decoder) throws {
+            let saved = try decoder.container(keyedBy: CodingKeys.self)
+            let defaults = Prefs()
+            alertParkIDs = try saved.decodeIfPresent(Set<String>.self, forKey: .alertParkIDs) ?? defaults.alertParkIDs
+            alertsEnabled = try saved.decodeIfPresent(Bool.self, forKey: .alertsEnabled) ?? defaults.alertsEnabled
+            isPlus = try saved.decodeIfPresent(Bool.self, forKey: .isPlus) ?? defaults.isPlus
+            autoCheckIn = try saved.decodeIfPresent(Bool.self, forKey: .autoCheckIn) ?? defaults.autoCheckIn
+            hiddenAuthorIDs = try saved.decodeIfPresent(Set<String>.self, forKey: .hiddenAuthorIDs) ?? defaults.hiddenAuthorIDs
+            autoParkID = try saved.decodeIfPresent(String.self, forKey: .autoParkID)
+            demoMode = try saved.decodeIfPresent(Bool.self, forKey: .demoMode) ?? defaults.demoMode
+        }
     }
 
     private(set) var status: Status = .loading
@@ -168,14 +185,14 @@ final class AppState {
 
     func dogs(of checkIn: CheckIn) -> [Dog] { checkIn.dogIDs.compactMap(dog) }
 
-    /// Real people first, then the demo pack.
+    /// Real people first, then the demo pack while Demo Mode is on.
     var friends: [Person] {
         let real = cloud.profiles.values.filter { $0.id != myID }.sorted { $0.name < $1.name }
-        return real + DemoPack.people
+        return real + (prefs.demoMode ? DemoPack.people : [])
     }
 
     private var currentCheckIns: [CheckIn] {
-        (cloud.checkIns + demoCheckIns).filter {
+        (cloud.checkIns + (prefs.demoMode ? demoCheckIns : [])).filter {
             Date.now.timeIntervalSince($0.arrivedAt) < Cloud.checkInWindow && person($0.personID) != nil
         }
     }
@@ -269,6 +286,12 @@ final class AppState {
 
     func resetDemoPack() {
         demoCheckIns = []
+    }
+
+    /// Demo Mode on shows the demo pack and its button; off hides them and sends the pack home.
+    func setDemoMode(_ on: Bool) {
+        updatePrefs { $0.demoMode = on }
+        if !on { demoCheckIns = [] }
     }
 
     func toggleAlerts(_ park: Park) {

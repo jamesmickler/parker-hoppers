@@ -9,7 +9,7 @@ const $tabs = document.getElementById('tabs');
 const $banner = document.getElementById('banner');
 const $sheetRoot = document.getElementById('sheet-root');
 
-// 'loading' → then 'online' (joined), 'needs-join' (connected, not joined) or 'offline' (demo pack only)
+// 'loading' → then 'online' (joined), 'needs-join' (connected, not joined) or 'offline' (no server)
 let status = 'loading';
 // A photo picked in a form that hasn't been saved yet.
 let draftPhoto = null;
@@ -158,18 +158,18 @@ function parksScreen() {
   const otherParks = parks.filter((p) => !store.alertsOn(p.id));
   return `
     <header class="topbar">
-      <div><div class="eyebrow">Charleston</div><h1>Parker Hoppers</h1></div>
+      <div><div class="eyebrow">Charleston</div><h1>Park Hoppers</h1></div>
       <div class="topbar-actions">
+        ${store.demoMode() ? `<button class="demo-btn" data-action="simulate" aria-label="Demo: a friend arrives">${icon.bell} Demo</button>` : ''}
         <button class="icon-btn" data-action="locate" aria-label="Find the park I'm at">${icon.locate}</button>
-        <button class="icon-btn" data-action="simulate" aria-label="Demo: a friend arrives">${icon.bell}</button>
       </div>
     </header>
     ${mine ? hereCard(mine) : ''}
     <div class="map-slot" id="map-main"></div>
     ${myParks.length ? `<h2 class="section">Your parks</h2><div class="stack">${myParks.map(parkRow).join('')}</div>` : ''}
     ${otherParks.length ? `<h2 class="section">More dog parks</h2><div class="stack">${otherParks.map(parkRow).join('')}</div>` : ''}
-    <p class="footnote">Public park locations and hours come from the City of Charleston and Charleston County Parks. Tap 🔔 to have a made-up demo friend (Maya, Theo, Priya, Sam or Dana) arrive.${store.isOnline()
-      ? ' Everyone else is a real person who joined.'
+    <p class="footnote">Public park locations and hours come from the City of Charleston and Charleston County Parks.${store.demoMode()
+      ? ' Demo Mode is on: tap Demo to have a made-up friend (Maya, Theo, Priya, Sam or Dana) arrive.'
       : ''}</p>`;
 }
 
@@ -332,14 +332,14 @@ function meScreen() {
   const { prefs } = store.state;
   const account = {
     online: `<div class="list-title">Account</div>
-      <div class="list"><button class="row row-btn danger" data-action="leave">Leave Parker Hoppers</button></div>
-      <p class="list-foot">Deletes your name, dogs, check-ins and posts from Parker Hoppers.</p>`,
+      <div class="list"><button class="row row-btn danger" data-action="leave">Leave Park Hoppers</button></div>
+      <p class="list-foot">Deletes your name, dogs, check-ins and posts from Park Hoppers.</p>`,
     'needs-join': `<a class="card join-card" href="#/join">
         <span class="emoji">🐾</span>
         <div class="grow"><b>Join the real pack</b><div class="small muted">Right now you’re looking around with demo data. Join with just your name and your dog’s name.</div></div>
         <span class="chev">${icon.chevron}</span>
       </a>`,
-    offline: '<p class="footnote">Couldn’t reach the Parker Hoppers server, so you’re seeing the demo pack only.</p>',
+    offline: '<p class="footnote">Couldn’t reach the Park Hoppers server, so real people won’t appear. Demo Mode still works.</p>',
   }[status] ?? '';
   return `
     <header class="topbar"><h1>${store.isOnline() ? esc(store.me().name) : 'Me'}</h1></header>
@@ -353,7 +353,7 @@ function meScreen() {
     <button class="card plus-card" data-action="open-plus">
       <img src="icons/icon-192.png" alt="" class="plus-icon">
       <div class="grow">
-        <b>${prefs.plus ? 'You have Parker Hoppers Plus' : 'Get Parker Hoppers Plus'}</b>
+        <b>${prefs.plus ? 'You have Park Hoppers Plus' : 'Get Park Hoppers Plus'}</b>
         <div class="small muted">Home-screen widget, instant alerts, AirTag sharing help</div>
       </div>
       <span class="chev">${icon.chevron}</span>
@@ -362,7 +362,7 @@ function meScreen() {
     <div class="list">
       <div class="row"><div class="grow">Friend arrival alerts</div>${toggle('toggle-pref', prefs.alerts, 'data-pref="alerts"')}</div>
       <div class="row">
-        <div class="grow">Auto check-in at my parks<div class="small muted">While Parker Hoppers is open, checks you in when you arrive at a park with 🔔 alerts on</div></div>
+        <div class="grow">Auto check-in at my parks<div class="small muted">While Park Hoppers is open, checks you in when you arrive at a park with 🔔 alerts on</div></div>
         ${toggle('toggle-auto', prefs.autoCheckIn)}
       </div>
     </div>
@@ -372,17 +372,22 @@ function meScreen() {
       <div class="row"><div class="grow">Who sees my posts</div><span class="muted">Friends only</span></div>
     </div>
     ${status === 'needs-join' ? '' : account}
-    <div class="list-title">Demo pack</div>
-    <div class="list"><button class="row row-btn danger" data-action="reset">Reset demo pack</button></div>
-    <p class="list-foot">Brings back Maya, Theo and the other made-up friends. Real people aren’t affected.</p>
-    <p class="footnote center">Parker Hoppers · prototype</p>`;
+    <div class="list-title">Presenting</div>
+    <div class="list">
+      <div class="row">
+        <div class="grow">Demo Mode<div class="small muted">Adds a Demo button on the Parks tab that makes a made-up friend arrive, so you can show off alerts without a second phone</div></div>
+        ${toggle('toggle-demo', prefs.demoMode)}
+      </div>
+      ${prefs.demoMode ? '<button class="row row-btn danger" data-action="demo-home">Send demo friends home</button>' : ''}
+    </div>
+    <p class="footnote center">Park Hoppers · prototype</p>`;
 }
 
 function joinScreen() {
   return `
     <div class="join">
       <img class="join-icon" src="icons/icon-192.png" alt="">
-      <h1>Parker Hoppers</h1>
+      <h1>Park Hoppers</h1>
       <p class="muted">See when your friends’ dogs are at the park, so you can meet up.</p>
       <form data-submit="join" class="stack">
         ${dogPhotoPicker()}
@@ -393,12 +398,12 @@ function joinScreen() {
         <button class="btn btn-primary" type="submit">${icon.paw} Join the pack</button>
       </form>
       <button class="link-btn look-around" data-action="look-around">Just look around first</button>
-      <p class="footnote center">No email or password. Everyone testing Parker Hoppers can see your first name, your dogs, and the park you check in at.</p>
+      <p class="footnote center">No email or password. Everyone testing Park Hoppers can see your first name, your dogs, and the park you check in at.</p>
     </div>`;
 }
 
 const screens = {
-  loading: () => '<div class="splash"><img src="icons/icon-192.png" alt="Parker Hoppers"></div>',
+  loading: () => '<div class="splash"><img src="icons/icon-192.png" alt="Park Hoppers"></div>',
   join: joinScreen,
   parks: parksScreen,
   park: (r) => parkScreen(r.id),
@@ -508,11 +513,11 @@ const sheets = {
       ${sheetHead('', { left: '', right: 'Close' })}
       <div class="plus-hero">
         <img src="icons/icon-192.png" alt="">
-        <h2>Parker Hoppers Plus</h2>
+        <h2>Park Hoppers Plus</h2>
         <p class="muted">Never miss a playdate.</p>
       </div>
       <div class="widget" aria-label="Home-screen widget preview">
-        <div class="widget-top">🐾 Parker Hoppers</div>
+        <div class="widget-top">🐾 Park Hoppers</div>
         <div class="grow"></div>
         <b>${esc(busiest.name)}</b>
         ${avatars(here.flatMap((v) => v.dogs), 24)}
@@ -741,10 +746,10 @@ function locate() {
 }
 
 async function invite() {
-  const text = 'Join my pack on Parker Hoppers so our dogs can meet up at the park! 🐾';
+  const text = 'Join my pack on Park Hoppers so our dogs can meet up at the park! 🐾';
   const url = location.origin + location.pathname;
   if (navigator.share) {
-    try { await navigator.share({ title: 'Parker Hoppers', text, url }); } catch { /* cancelled */ }
+    try { await navigator.share({ title: 'Park Hoppers', text, url }); } catch { /* cancelled */ }
     return;
   }
   try {
@@ -770,7 +775,7 @@ const actions = {
     location.hash = '#/parks';
   },
   async leave() {
-    if (!confirm('Leave Parker Hoppers? This deletes your name, dogs, check-ins and posts.')) return;
+    if (!confirm('Leave Park Hoppers? This deletes your name, dogs, check-ins and posts.')) return;
     if (!(await run(() => store.leave()))) return;
     status = 'needs-join';
     location.hash = '#/join';
@@ -805,16 +810,20 @@ const actions = {
     closeSheet();
     showBanner(store.state.prefs.plus ? 'Welcome to Plus! ✨' : 'Plus turned off', store.state.prefs.plus ? 'Your widget and instant alerts are on.' : 'You’re back on the free plan.');
   },
-  reset() {
-    if (!confirm('Reset the demo pack? Made-up friends, their check-ins and posts go back to the start.')) return;
-    store.reset();
-    showBanner('Demo pack reset', 'Maya, Theo and friends are back where they started.');
+  'demo-home'() {
+    store.sendDemoPackHome();
+    showBanner('Demo friends went home', 'Maya, Theo and friends left the parks.');
   },
 };
 
 const changes = {
   'toggle-alerts': (el) => store.toggleAlerts(el.dataset.park),
   'toggle-pref': (el) => store.setPref(el.dataset.pref, el.checked),
+  'toggle-demo'(el) {
+    store.setDemoMode(el.checked);
+    showBanner(el.checked ? 'Demo Mode is on' : 'Demo Mode is off',
+      el.checked ? 'Tap Demo on the Parks tab to have a made-up friend arrive.' : 'The demo friends are gone.');
+  },
   'toggle-auto'(el) {
     store.setPref('autoCheckIn', el.checked);
     if (!el.checked) {
@@ -939,7 +948,7 @@ status = await store.start({ onArrival: announceArrival });
 route = parseHash();
 renderView();
 if (status === 'offline') {
-  showBanner('Showing the demo pack', 'Couldn’t reach the Parker Hoppers server, so real people won’t appear.');
+  showBanner('You’re offline', 'Couldn’t reach the Park Hoppers server, so real people won’t appear.');
 }
 if (store.state.prefs.autoCheckIn) startAutoCheckIn();
 
