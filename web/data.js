@@ -38,7 +38,7 @@ export const parks = [
   {
     // Amenity at The Jasper apartments, not on the city's public list.
     id: 'the-jasper', name: 'The Jasper Dog Park', area: 'Harleston Village',
-    address: '310 Broad St', lat: 32.77644, lng: -79.94311,
+    address: '310 Broad St', lat: 32.776453, lng: -79.943101,
     hours: null, hoursText: 'Set by the building', access: 'Residents only',
     fenced: null, otherDogs: 2,
     // Tight circle on the dog run itself, trusting only precise (outdoor) GPS, so being
