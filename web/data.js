@@ -64,14 +64,30 @@ export const parks = [
 export const parkById = (id) => parks.find((p) => p.id === id);
 
 export const dogs = {
-  biscuit: { id: 'biscuit', name: 'Biscuit', breed: 'Golden Retriever', color: '#F2A23A' },
-  pepper: { id: 'pepper', name: 'Pepper', breed: 'Australian Shepherd', color: '#8E8E93' },
-  luna: { id: 'luna', name: 'Luna', breed: 'Border Collie', color: '#5B5FD6' },
-  waffles: { id: 'waffles', name: 'Waffles', breed: 'Corgi', color: '#C98A4B' },
-  pickles: { id: 'pickles', name: 'Pickles', breed: 'Dachshund', color: '#34A853' },
-  mochi: { id: 'mochi', name: 'Mochi', breed: 'Shiba Inu', color: '#E5484D' },
-  bruno: { id: 'bruno', name: 'Bruno', breed: 'Boxer', color: '#2BB5B8' },
-  olive: { id: 'olive', name: 'Olive', breed: 'Labradoodle', color: '#FF6B8B' },
+  biscuit: { id: 'biscuit', name: 'Biscuit', breed: 'Golden Retriever', color: '#F2A23A', size: 'large', comfort: 'loves_all' },
+  pepper: { id: 'pepper', name: 'Pepper', breed: 'Australian Shepherd', color: '#8E8E93', size: 'medium', comfort: 'shy' },
+  luna: { id: 'luna', name: 'Luna', breed: 'Border Collie', color: '#5B5FD6', size: 'medium', comfort: 'loves_all' },
+  waffles: { id: 'waffles', name: 'Waffles', breed: 'Corgi', color: '#C98A4B', size: 'small', comfort: 'big_dogs' },
+  pickles: { id: 'pickles', name: 'Pickles', breed: 'Dachshund', color: '#34A853', size: 'small', comfort: 'small_dogs' },
+  mochi: { id: 'mochi', name: 'Mochi', breed: 'Shiba Inu', color: '#E5484D', size: 'medium', comfort: 'needs_space' },
+  bruno: { id: 'bruno', name: 'Bruno', breed: 'Boxer', color: '#2BB5B8', size: 'large', comfort: 'loves_all' },
+  olive: { id: 'olive', name: 'Olive', breed: 'Labradoodle', color: '#FF6B8B', size: 'large', comfort: 'shy' },
+};
+
+// Dog details. Keys are stored in the database (dogs.size, dogs.comfort); keep them in sync
+// with ios/ParkerHoppers/Models.swift.
+export const SIZES = {
+  small: { label: 'Small', hint: 'under 25 lb' },
+  medium: { label: 'Medium', hint: '25–50 lb' },
+  large: { label: 'Large', hint: 'over 50 lb' },
+};
+
+export const COMFORT = {
+  loves_all: 'Loves all dogs',
+  small_dogs: 'Best with small dogs',
+  big_dogs: 'Best with big dogs',
+  shy: 'Shy, warms up slowly',
+  needs_space: 'Needs space from other dogs',
 };
 
 export const MY_ID = 'me';

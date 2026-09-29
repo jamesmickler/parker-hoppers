@@ -366,16 +366,99 @@ export function hidePostsFrom(personId) {
   commit();
 }
 
-export async function addDog({ name, breed, color, photo }) {
+export async function addDog({ name, breed, color, photo, size, comfort }) {
   if (online) {
-    await cloud.addDog({ name, breed, color, photo });
+    await cloud.addDog({ name, breed, color, photo, size, comfort });
     notify();
     return;
   }
   const id = uid();
-  state.dogs[id] = { id, name, breed, color, photo };
+  state.dogs[id] = { id, name, breed, color, photo, size, comfort };
   state.people[state.myId].dogIds.push(id);
   commit();
+}
+
+export async function updateDog(id, fields) {
+  if (online) {
+    await cloud.updateDog(id, fields);
+    notify();
+    return;
+  }
+  const { photo, ...rest } = fields;
+  Object.assign(state.dogs[id], rest, photo ? { photo } : {});
+  commit();
+}
+
+// ---------- Friends ----------
+// Only friends see each other; friendships start from a one-time invite code.
+
+const INVITE_KEY = 'parker-hoppers-invite';
+
+/** An invite link (…/?invite=CODE) is remembered until the person has joined and used it. */
+function readInviteFromLink() {
+  const params = new URLSearchParams(location.search);
+  const code = params.get('invite');
+  if (!code) return;
+  try {
+    localStorage.setItem(INVITE_KEY, code);
+  } catch {
+    // Storage blocked: the code can still be typed in on the Friends tab.
+  }
+  params.delete('invite');
+  const rest = params.toString();
+  history.replaceState(null, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
+}
+readInviteFromLink();
+
+export function pendingInvite() {
+  try {
+    return localStorage.getItem(INVITE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function clearPendingInvite() {
+  try {
+    localStorage.removeItem(INVITE_KEY);
+  } catch {
+    // Nothing saved.
+  }
+}
+
+export const invitePreview = (code) => cloud.invitePreview(code);
+
+/** Makes a one-time invite code and the link that goes with it. */
+export async function createInvite() {
+  const code = await cloud.createInvite();
+  const link = `${location.origin}${location.pathname}?invite=${code}`;
+  return { code, link };
+}
+
+/** Uses an invite code (typed in, or from a link). Resolves the new friend's name. */
+export async function acceptInvite(code) {
+  const name = await cloud.acceptInvite(code);
+  clearPendingInvite();
+  notify();
+  return name;
+}
+
+/** Uses the remembered invite link, if any. Resolves the friend's name, or null. */
+export async function acceptPendingInvite() {
+  const code = pendingInvite();
+  if (!code || !online) return null;
+  try {
+    return await acceptInvite(code);
+  } catch (error) {
+    // Don't retry a bad or used code every launch, but keep it if the phone was just offline.
+    if (!/fetch|network|timed out/i.test(String(error?.message))) clearPendingInvite();
+    throw error;
+  }
+}
+
+export async function removeFriend(friendId) {
+  await cloud.removeFriend(friendId);
+  notify();
 }
 
 /** Called once a minute: ends old check-ins, refreshes "5 min ago" labels and re-syncs. */

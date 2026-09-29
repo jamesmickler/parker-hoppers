@@ -1,6 +1,6 @@
 // The screens, and what happens when you tap things.
 
-import { parks, parkById, offLeashStatus, distanceMeters } from './data.js';
+import { parks, parkById, offLeashStatus, distanceMeters, SIZES, COMFORT } from './data.js';
 import * as store from './store.js';
 import * as auto from './autocheckin.js';
 import * as push from './push.js';
@@ -63,6 +63,43 @@ function dogNames(dogs, limit = 3) {
   return `${names.slice(0, limit).join(', ')} +${names.length - limit}`;
 }
 
+/** "Large · Loves all dogs" (whatever's known about the dog). */
+function dogDetails(dog) {
+  return [SIZES[dog?.size]?.label, COMFORT[dog?.comfort]].filter(Boolean).join(' · ');
+}
+
+/** The breed, unless it's the "Good dog" filler used when none was given. */
+const breedOf = (dog) => (dog.breed === 'Good dog' ? '' : dog.breed);
+
+/** Size buttons and a "with other dogs" menu, for joining and for adding or editing a dog. */
+function dogDetailsFields(dog = {}) {
+  return `
+    <div class="list-title flush">Size</div>
+    <div class="chips">
+      ${Object.entries(SIZES).map(([key, size]) => `
+        <label class="chip"><input type="radio" name="size" value="${key}" ${dog.size === key ? 'checked' : ''}><span><b>${size.label}</b><small>${size.hint}</small></span></label>`).join('')}
+    </div>
+    <div class="list-title flush">With other dogs</div>
+    <select class="field" name="comfort" aria-label="Comfort with other dogs">
+      <option value="">Choose one…</option>
+      ${Object.entries(COMFORT).map(([key, label]) => `<option value="${key}" ${dog.comfort === key ? 'selected' : ''}>${label}</option>`).join('')}
+    </select>`;
+}
+
+/** "Right now: 2 large · 1 small", plus a heads-up about dogs that need space or are shy. */
+function parkMix(visitors) {
+  const dogs = visitors.flatMap((v) => v.dogs);
+  const mix = Object.entries(SIZES)
+    .map(([key, size]) => [dogs.filter((d) => d.size === key).length, size.label.toLowerCase()])
+    .filter(([n]) => n)
+    .map(([n, label]) => `${n} ${label}`)
+    .join(' · ');
+  const careful = dogs.filter((d) => d.comfort === 'needs_space' || d.comfort === 'shy');
+  return `
+    ${mix ? `<p class="mix small muted">🐕 Right now: ${mix}</p>` : ''}
+    ${careful.map((d) => `<p class="heads-up small">⚠️ ${esc(d.name)} ${d.comfort === 'needs_space' ? 'needs space from other dogs' : 'is shy and warms up slowly'}</p>`).join('')}`;
+}
+
 function timeAgo(t) {
   const minutes = Math.floor((Date.now() - t) / 60_000);
   if (minutes < 1) return 'just now';
@@ -82,14 +119,14 @@ const toggle = (action, on, attrs = '', disabled = false) =>
 
 const COLORS = ['#F2A23A', '#5B8DEF', '#34A853', '#FF6B8B', '#A77BF3', '#2BB5B8', '#C98A4B', '#8E8E93'];
 
-const swatchPicker = () => `
+const swatchPicker = (selected = COLORS[1]) => `
   <div class="swatches">
-    ${COLORS.map((c, i) => `<label class="swatch" style="--c:${c}"><input type="radio" name="color" value="${c}" ${i === 1 ? 'checked' : ''} aria-label="Badge color ${i + 1}"><span></span></label>`).join('')}
+    ${COLORS.map((c, i) => `<label class="swatch" style="--c:${c}"><input type="radio" name="color" value="${c}" ${c === selected ? 'checked' : ''} aria-label="Badge color ${i + 1}"><span></span></label>`).join('')}
   </div>`;
 
-const dogPhotoPicker = () => `
+const dogPhotoPicker = (dog) => `
   <label class="dog-photo-pick" aria-label="Add a photo of your dog">
-    <span id="dog-photo-preview">${icon.camera}</span>
+    <span id="dog-photo-preview">${dog?.photo ? `<img src="${esc(dog.photo)}" alt="">` : icon.camera}</span>
     <input type="file" accept="image/*" data-change="pick-dog-photo" class="visually-hidden">
   </label>`;
 
@@ -262,6 +299,7 @@ function parkScreen(id) {
       <a class="btn btn-plain btn-icon" href="${directions}" target="_blank" rel="noopener" aria-label="Directions">${icon.directions}</a>
     </div>
     <h2 class="section">At the park now</h2>
+    ${parkMix(visitors)}
     <div class="list">
       ${visitors.length ? visitors.map(visitorRow).join('') : '<div class="row muted">No one’s checked in here yet.</div>'}
     </div>
@@ -284,10 +322,17 @@ function parkScreen(id) {
 
 function visitorRow(v) {
   const who = v.personId === store.myId() ? 'You' : `with ${esc(v.person.name)}`;
+  const details = v.dogs.length === 1
+    ? dogDetails(v.dogs[0])
+    : v.dogs.filter((d) => dogDetails(d)).map((d) => `${d.name}: ${dogDetails(d)}`).join(' · ');
   return `
     <div class="row">
       ${avatars(v.dogs, 40)}
-      <div class="grow"><b>${esc(dogNames(v.dogs))}</b><div class="small muted">${who} · arrived ${timeAgo(v.arrivedAt)}</div></div>
+      <div class="grow">
+        <b>${esc(dogNames(v.dogs))}</b>
+        <div class="small muted">${who} · arrived ${timeAgo(v.arrivedAt)}</div>
+        ${details ? `<div class="small muted">${esc(details)}</div>` : ''}
+      </div>
     </div>`;
 }
 
@@ -341,14 +386,16 @@ function friendsScreen() {
     </a>`).join('');
   const packRows = store.friends().map((f) => {
     const dogs = f.dogIds.map((id) => store.dog(id)).filter(Boolean);
+    const demo = store.isDemoPerson(f.id);
     return `
       <div class="row">
         ${avatars(dogs, 40)}
         <div class="grow">
-          <b>${esc(f.name)}</b>${store.isDemoPerson(f.id) ? ' <span class="demo-tag">demo</span>' : ''}
-          <div class="small muted">${esc(dogs.map((d) => `${d.name} the ${d.breed}`).join(', '))}</div>
+          <b>${esc(f.name)}</b>${demo ? ' <span class="demo-tag">demo</span>' : ''}
+          <div class="small muted">${esc(dogs.map((d) => [d.name, dogDetails(d) || breedOf(d)].filter(Boolean).join(': ')).join(' · '))}</div>
         </div>
         ${store.checkInFor(f.id) ? '<span class="tag">At park</span>' : ''}
+        ${demo ? '' : `<button class="icon-btn flat" data-action="friend-menu" data-person="${f.id}" aria-label="Options for ${esc(f.name)}">${icon.more}</button>`}
       </div>`;
   }).join('');
   return `
@@ -358,10 +405,17 @@ function friendsScreen() {
         <button class="icon-btn" data-action="invite" aria-label="Invite a friend">${icon.invite}</button>
       </div>
     </header>
+    ${store.isOnline() ? `
+      <div class="list">
+        <button class="row row-btn" data-action="invite">${icon.invite} Invite a friend</button>
+        <button class="row row-btn" data-action="enter-code">${icon.plus} Enter a friend’s code</button>
+      </div>
+      <p class="list-foot">Only friends see your name, your dogs and where you check in.</p>`
+    : '<p class="footnote">Join Park Hoppers to add friends. Only friends see each other at the park.</p>'}
     <div class="list-title">At the park now</div>
     <div class="list">${hereRows || '<div class="row muted">No friends at the park right now.</div>'}</div>
     <div class="list-title">Your pack</div>
-    <div class="list">${packRows}</div>`;
+    <div class="list">${packRows || '<div class="row muted">No friends yet. Invite someone you know from the park!</div>'}</div>`;
 }
 
 function meScreen() {
@@ -383,7 +437,11 @@ function meScreen() {
     <div class="list-title">Your pack</div>
     <div class="list">
       ${store.myDogs().map((d) => `
-        <div class="row">${avatar(d, 44)}<div class="grow"><b>${esc(d.name)}</b><div class="small muted">${esc(d.breed)}</div></div></div>`).join('')}
+        <button class="row row-link" data-action="edit-dog" data-dog="${d.id}">
+          ${avatar(d, 44)}
+          <div class="grow"><b>${esc(d.name)}</b><div class="small muted">${esc([breedOf(d), dogDetails(d) || 'Tap to add size and comfort with other dogs'].filter(Boolean).join(' · '))}</div></div>
+          <span class="chev">${icon.chevron}</span>
+        </button>`).join('')}
       <button class="row row-btn" data-action="open-adddog">${icon.plus} Add a dog</button>
     </div>
     <button class="card plus-card" data-action="open-plus">
@@ -432,16 +490,19 @@ function joinScreen() {
       <img class="join-icon" src="icons/icon-192.png" alt="">
       <h1>Park Hoppers</h1>
       <p class="muted">See when your friends’ dogs are at the park, so you can meet up.</p>
+      <p class="invite-note" id="invite-note" hidden></p>
       <form data-submit="join" class="stack">
         ${dogPhotoPicker()}
         <input class="field" name="name" placeholder="Your first name" required maxlength="40" autocomplete="given-name">
         <input class="field" name="dog" placeholder="Your dog’s name" required maxlength="30" autocomplete="off">
         <input class="field" name="breed" placeholder="Breed (optional)" maxlength="40" autocomplete="off">
+        ${dogDetailsFields()}
+        <div class="list-title flush">Badge color</div>
         ${swatchPicker()}
         <button class="btn btn-primary" type="submit">${icon.paw} Join the pack</button>
       </form>
       <button class="link-btn look-around" data-action="look-around">Just look around first</button>
-      <p class="footnote center">No email or password. Everyone testing Park Hoppers can see your first name, your dogs, and the park you check in at.</p>
+      <p class="footnote center">No email or password. Only friends (people you invite, or who invite you) can see your name, your dogs and where you check in.</p>
     </div>`;
 }
 
@@ -540,10 +601,59 @@ const sheets = {
         ${dogPhotoPicker()}
         <input class="field" name="name" placeholder="Name" required maxlength="30" autocomplete="off">
         <input class="field" name="breed" placeholder="Breed (optional)" maxlength="40" autocomplete="off">
+        ${dogDetailsFields()}
         <div class="list-title flush">Badge color</div>
         ${swatchPicker()}
         <button class="btn btn-primary" type="submit">Save</button>
       </form>`;
+  },
+
+  editdog() {
+    const d = store.dog(sheet.dogId);
+    return `
+      ${sheetHead(`Edit ${esc(d.name)}`)}
+      <form data-submit="editdog" class="stack">
+        ${dogPhotoPicker(d)}
+        <input class="field" name="name" value="${esc(d.name)}" placeholder="Name" required maxlength="30" autocomplete="off">
+        <input class="field" name="breed" value="${esc(breedOf(d))}" placeholder="Breed (optional)" maxlength="40" autocomplete="off">
+        ${dogDetailsFields(d)}
+        <div class="list-title flush">Badge color</div>
+        ${swatchPicker(d.color)}
+        <button class="btn btn-primary" type="submit">Save</button>
+      </form>`;
+  },
+
+  invite() {
+    const made = sheet.invite;
+    return `
+      ${sheetHead('Invite a friend', { left: '', right: 'Done' })}
+      <p class="sheet-sub">Only friends see your name, your dogs and where you check in.</p>
+      ${made ? `
+        <div class="card center invite-card">
+          <div class="small muted">Invite code</div>
+          <div class="invite-code">${made.code.slice(0, 4)}-${made.code.slice(4)}</div>
+          <div class="small muted">Works once, for 7 days. Only share it with people you know.</div>
+        </div>
+        <div class="stack spaced">
+          <button class="btn btn-primary" data-action="share-invite">Share invite</button>
+          <button class="btn btn-plain" data-action="copy-invite">Copy link</button>
+        </div>`
+      : `<button class="btn btn-primary spaced" data-action="make-invite">${icon.invite} Make an invite</button>`}
+      <div class="list-title">Got a code from a friend?</div>
+      <form data-submit="use-code" class="code-form">
+        <input class="field" name="code" placeholder="e.g. K7P2-9QXM" maxlength="12" autocomplete="off" autocapitalize="characters" ${sheet.focusCode ? 'autofocus' : ''}>
+        <button class="btn btn-plain" type="submit">Add</button>
+      </form>`;
+  },
+
+  friendmenu() {
+    const friend = store.person(sheet.personId);
+    return `
+      <div class="stack">
+        <button class="btn btn-danger" data-action="remove-friend" data-person="${friend.id}">Remove ${esc(friend.name)} as a friend</button>
+        <p class="list-foot center">You’ll stop seeing each other’s check-ins, dogs and posts.</p>
+        <button class="btn btn-plain" data-action="close-sheet"><b>Cancel</b></button>
+      </div>`;
   },
 
   plus() {
@@ -707,6 +817,7 @@ function renderView() {
   if (route.name === 'join' && $view.querySelector('form[data-submit=join]')) return;
   $view.innerHTML = screens[route.name](route);
   $tabs.hidden = !route.tab;
+  if (route.name === 'join') showInvitePreview();
   renderTabs();
   if (route.name === 'parks') mountMap('map-main', 'main', parks, null);
   if (route.name === 'park' && parkById(route.id)) mountMap('map-detail', 'detail', [parkById(route.id)], parkById(route.id));
@@ -721,6 +832,26 @@ window.addEventListener('hashchange', () => {
 store.subscribe(renderView);
 
 // ---------- What taps do ----------
+
+async function showInvitePreview() {
+  const code = store.pendingInvite();
+  if (!code) return;
+  const name = await store.invitePreview(code);
+  const note = document.getElementById('invite-note');
+  if (!name || !note) return;
+  note.textContent = `🎉 ${name} invited you to their pack. Join to become friends.`;
+  note.hidden = false;
+}
+
+/** If this phone opened an invite link, use it now (once joined). */
+async function acceptInviteFromLink() {
+  try {
+    const name = await store.acceptPendingInvite();
+    if (name) showBanner(`You and ${name} are now friends! 🐾`, 'You’ll see each other’s dogs at the park.');
+  } catch (error) {
+    showBanner('That invite didn’t work', friendly(error));
+  }
+}
 
 function announceArrival({ person, dogs, park }) {
   if (!park || !store.state.prefs.alerts || !store.alertsOn(park.id)) return;
@@ -788,25 +919,51 @@ function locate() {
   );
 }
 
-async function invite() {
-  const text = 'Join my pack on Park Hoppers so our dogs can meet up at the park! 🐾';
-  const url = location.origin + location.pathname;
-  if (navigator.share) {
-    try { await navigator.share({ title: 'Park Hoppers', text, url }); } catch { /* cancelled */ }
-    return;
-  }
-  try {
-    await navigator.clipboard.writeText(`${text} ${url}`);
-    showBanner('Invite link copied', 'Paste it into a text to a friend.');
-  } catch {
-    showBanner('Share this link', url);
-  }
-}
 
 const actions = {
   simulate,
   locate,
-  invite,
+  invite() {
+    if (!store.isOnline()) {
+      showBanner('Join first', 'Join Park Hoppers to invite friends.');
+      return;
+    }
+    openSheet({ type: 'invite' });
+  },
+  'enter-code'() {
+    openSheet({ type: 'invite', focusCode: true });
+    document.querySelector('form[data-submit=use-code] input')?.focus();
+  },
+  async 'make-invite'() {
+    let made;
+    if (await run(async () => { made = await store.createInvite(); })) openSheet({ type: 'invite', invite: made });
+  },
+  async 'share-invite'() {
+    const { code, link } = sheet.invite;
+    const text = `Join my pack on Park Hoppers so our dogs can meet up at the park! 🐾 Tap the link, or enter code ${code.slice(0, 4)}-${code.slice(4)} on the Friends tab.`;
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Park Hoppers invite', text, url: link }); } catch { /* cancelled */ }
+      return;
+    }
+    await actions['copy-invite']();
+  },
+  async 'copy-invite'() {
+    try {
+      await navigator.clipboard.writeText(sheet.invite.link);
+      showBanner('Invite link copied', 'Paste it into a text to a friend. It works once.');
+    } catch {
+      showBanner('Copy this link', sheet.invite.link);
+    }
+  },
+  'friend-menu': (el) => openSheet({ type: 'friendmenu', personId: el.dataset.person }),
+  async 'remove-friend'(el) {
+    const friend = store.person(el.dataset.person);
+    closeSheet();
+    if (await run(() => store.removeFriend(friend.id))) {
+      showBanner('Friend removed', `You and ${friend.name} no longer see each other.`);
+    }
+  },
+  'edit-dog': (el) => openSheet({ type: 'editdog', dogId: el.dataset.dog }),
   async checkout() {
     if (await run(() => store.checkOut())) showBanner('Checked out', 'Thanks for hopping by! 🐾');
   },
@@ -923,7 +1080,10 @@ const submits = {
     const name = data.get('name').trim();
     const dogName = data.get('dog').trim();
     if (!name || !dogName) return;
-    const dog = { name: dogName, breed: data.get('breed').trim() || 'Good dog', color: data.get('color') || '#5B8DEF', photo: draftPhoto };
+    const dog = {
+      name: dogName, breed: data.get('breed').trim() || 'Good dog', color: data.get('color') || '#5B8DEF', photo: draftPhoto,
+      size: data.get('size') || null, comfort: data.get('comfort') || null,
+    };
     if (!(await submitting(form, () => store.join(name, dog)))) return;
     draftPhoto = null;
     status = 'online';
@@ -932,6 +1092,7 @@ const submits = {
     $view.innerHTML = '';
     renderView();
     showBanner(`Welcome to the pack, ${name}!`, `Tap a park and “We’re here!” when you and ${dogName} arrive.`);
+    acceptInviteFromLink();
   },
   async checkin(form) {
     const dogIds = new FormData(form).getAll('dog');
@@ -961,10 +1122,33 @@ const submits = {
     const data = new FormData(form);
     const name = data.get('name').trim();
     if (!name) return;
-    const dog = { name, breed: data.get('breed').trim() || 'Good dog', color: data.get('color') || '#5B8DEF', photo: draftPhoto };
+    const dog = {
+      name, breed: data.get('breed').trim() || 'Good dog', color: data.get('color') || '#5B8DEF', photo: draftPhoto,
+      size: data.get('size') || null, comfort: data.get('comfort') || null,
+    };
     if (!(await submitting(form, () => store.addDog(dog)))) return;
     closeSheet();
     showBanner(`${name} joined your pack!`, 'You can bring them when you check in.');
+  },
+  async editdog(form) {
+    const data = new FormData(form);
+    const name = data.get('name').trim();
+    if (!name) return;
+    const changes = {
+      name, breed: data.get('breed').trim() || 'Good dog', color: data.get('color') || '#5B8DEF', photo: draftPhoto,
+      size: data.get('size') || null, comfort: data.get('comfort') || null,
+    };
+    if (!(await submitting(form, () => store.updateDog(sheet.dogId, changes)))) return;
+    closeSheet();
+    showBanner(`${name} is updated`, 'Friends see the new details at the park.');
+  },
+  async 'use-code'(form) {
+    const code = new FormData(form).get('code').trim();
+    if (!code) return;
+    let name;
+    if (!(await submitting(form, async () => { name = await store.acceptInvite(code); }))) return;
+    closeSheet();
+    showBanner(`You and ${name} are now friends! 🐾`, 'You’ll see each other’s dogs at the park.');
   },
 };
 
@@ -1007,6 +1191,7 @@ if (status === 'offline') {
   showBanner('You’re offline', 'Couldn’t reach the Park Hoppers server, so real people won’t appear.');
 }
 if (store.state.prefs.autoCheckIn) startAutoCheckIn();
+if (status === 'online') acceptInviteFromLink();
 
 setInterval(store.tick, 60_000);
 

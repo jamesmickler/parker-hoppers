@@ -48,7 +48,7 @@ export async function refresh(myId = data.me?.id) {
   const since = new Date(Date.now() - CHECKIN_WINDOW).toISOString();
   const [profiles, dogs, checkIns, posts, likes, reports] = (await Promise.all([
     sb.from('profiles').select('id, name'),
-    sb.from('dogs').select('id, owner_id, name, breed, color, photo_url').order('created_at'),
+    sb.from('dogs').select('id, owner_id, name, breed, color, photo_url, size, comfort').order('created_at'),
     sb.from('check_ins').select('user_id, park_id, dog_ids, arrived_at').gt('arrived_at', since),
     sb.from('posts').select('id, author_id, dog_id, park_id, caption, photo_url, created_at')
       .order('created_at', { ascending: false }).limit(60),
@@ -59,7 +59,9 @@ export async function refresh(myId = data.me?.id) {
   data.profiles = Object.fromEntries(profiles.map((p) => [p.id, { id: p.id, name: p.name, dogIds: [] }]));
   data.dogs = {};
   for (const d of dogs) {
-    data.dogs[d.id] = { id: d.id, name: d.name, breed: d.breed, color: d.color, photo: d.photo_url };
+    data.dogs[d.id] = {
+      id: d.id, name: d.name, breed: d.breed, color: d.color, photo: d.photo_url, size: d.size, comfort: d.comfort,
+    };
     data.profiles[d.owner_id]?.dogIds.push(d.id);
   }
   data.me = data.profiles[myId] ?? null;
@@ -111,6 +113,7 @@ export function listen({ onChange, onArrival }) {
     .on('postgres_changes', { event: '*', schema: 'public', table: 'post_likes' }, reload)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'dogs' }, reload)
     .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, reload)
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'friendships' }, reload)
     .subscribe();
 }
 
@@ -130,13 +133,50 @@ export async function join(name, dog) {
   const userId = session.user.id;
   must(await sb.from('profiles').upsert({ id: userId, name }));
   const photoUrl = dog.photo ? await uploadPhoto(dog.photo, userId) : null;
-  must(await sb.from('dogs').insert({ name: dog.name, breed: dog.breed, color: dog.color, photo_url: photoUrl }));
+  must(await sb.from('dogs').insert({
+    name: dog.name, breed: dog.breed, color: dog.color, photo_url: photoUrl, size: dog.size ?? null, comfort: dog.comfort ?? null,
+  }));
   await refresh(userId);
 }
 
-export async function addDog({ name, breed, color, photo }) {
+export async function addDog({ name, breed, color, photo, size, comfort }) {
   const photoUrl = photo ? await uploadPhoto(photo, data.me.id) : null;
-  must(await sb.from('dogs').insert({ name, breed, color, photo_url: photoUrl }));
+  must(await sb.from('dogs').insert({ name, breed, color, photo_url: photoUrl, size: size ?? null, comfort: comfort ?? null }));
+  await refresh();
+}
+
+/** Saves changes to one of my dogs (name, breed, color, size, comfort, and optionally a new photo). */
+export async function updateDog(id, { name, breed, color, size, comfort, photo }) {
+  const changes = { name, breed, color, size: size ?? null, comfort: comfort ?? null };
+  if (photo) changes.photo_url = await uploadPhoto(photo, data.me.id);
+  must(await sb.from('dogs').update(changes).eq('id', id));
+  await refresh();
+}
+
+// ---------- Friends ----------
+
+/** Makes a new invite code (works once, for 7 days). */
+export async function createInvite() {
+  return must(await sb.rpc('create_invite'));
+}
+
+/** Uses a friend's invite code. Resolves the friend's name. */
+export async function acceptInvite(code) {
+  const name = must(await sb.rpc('accept_invite', { invite_code: code }));
+  await refresh();
+  return name;
+}
+
+/** Who sent an invite, if it's still valid. Works before joining. */
+export async function invitePreview(code) {
+  if (!sb) return null;
+  const { data: name } = await sb.rpc('invite_preview', { invite_code: code });
+  return name ?? null;
+}
+
+export async function removeFriend(friendId) {
+  const pair = [data.me.id, friendId];
+  must(await sb.from('friendships').delete().in('user_a', pair).in('user_b', pair));
   await refresh();
 }
 

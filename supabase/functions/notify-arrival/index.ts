@@ -1,8 +1,8 @@
 // Sends a phone notification to friends when someone arrives at a park.
 //
 // The app (web or iPhone) calls this right after checking in. It works out who's calling
-// from their sign-in, reads their current check-in, and notifies every other person's
-// device that has that park in "Your parks". Each arrival is sent once (check_ins.notified).
+// from their sign-in, reads their current check-in, and notifies their friends' devices
+// that have that park in "Your parks". Each arrival is sent once (check_ins.notified).
 //
 // Deploy: supabase functions deploy notify-arrival --no-verify-jwt --use-api
 // Secrets: VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (supabase secrets set ...)
@@ -66,12 +66,20 @@ Deno.serve(async (req) => {
   }
   await admin.from("check_ins").update({ notified: true }).eq("user_id", user.id);
 
+  // Only friends hear about it.
+  const { data: friendships } = await admin
+    .from("friendships")
+    .select("user_a, user_b")
+    .or(`user_a.eq.${user.id},user_b.eq.${user.id}`);
+  const friendIds = (friendships ?? []).map((f) => (f.user_a === user.id ? f.user_b : f.user_a));
+  if (friendIds.length === 0) return reply({ sent: 0, reason: "no friends yet" });
+
   const [{ data: profile }, { data: dogs }, { data: devices }] = await Promise.all([
     admin.from("profiles").select("name").eq("id", user.id).maybeSingle(),
     admin.from("dogs").select("name").in("id", checkIn.dog_ids),
     admin.from("push_subscriptions")
       .select("endpoint, p256dh, auth")
-      .neq("user_id", user.id)
+      .in("user_id", friendIds)
       .contains("park_ids", [checkIn.park_id]),
   ]);
 

@@ -174,6 +174,7 @@ h1.title { font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 
 .row-btn { width: 100%; border: 0; background: none; color: var(--accent); text-align: left; gap: 10px; }
 .row-btn svg { width: 20px; height: 20px; }
 .row-btn.danger { color: var(--danger); justify-content: center; }
+.row-link { width: 100%; border: 0; background: none; text-align: left; }
 .check-row { cursor: pointer; }
 .check-row input { accent-color: var(--accent); width: 22px; height: 22px; }
 
@@ -427,6 +428,35 @@ h1.title { font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 
 }
 textarea.field { resize: none; min-height: 96px; }
 .field:focus { outline: 2px solid var(--accent); outline-offset: 0; }
+
+select.field { appearance: none; -webkit-appearance: none; color: var(--text);
+  background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%), linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 20px) 50%, calc(100% - 14px) 50%; background-size: 6px 6px; background-repeat: no-repeat; }
+
+/* Dog size buttons */
+.chips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.chip { cursor: pointer; }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+.chip span {
+  display: grid; gap: 2px; text-align: center; padding: 10px 6px;
+  background: var(--card); border-radius: 12px; box-shadow: var(--shadow);
+  border: 2px solid transparent;
+}
+.chip small { font-size: 12px; color: var(--muted); }
+.chip input:checked + span { border-color: var(--accent); background: var(--accent-soft); }
+.chip input:focus-visible + span { outline: 2px solid var(--accent); }
+
+/* Invites */
+.invite-note { background: var(--accent-soft); color: var(--text); border-radius: 12px; padding: 10px 14px; margin: 16px 0; font-weight: 600; }
+.invite-card { display: grid; gap: 6px; margin-top: 16px; }
+.invite-code { font-size: 34px; font-weight: 800; letter-spacing: 0.08em; font-variant-numeric: tabular-nums; color: var(--accent); }
+.code-form { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.code-form .field { text-transform: uppercase; letter-spacing: 0.05em; }
+.code-form .field::placeholder { text-transform: none; letter-spacing: 0; }
+
+/* Who's at the park: sizes and heads-ups */
+.mix { margin: -2px 16px 8px; }
+.heads-up { margin: 0 0 8px; padding: 8px 12px; border-radius: 10px; background: rgba(229, 72, 77, 0.1); color: var(--text); }
 
 .visually-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
 
