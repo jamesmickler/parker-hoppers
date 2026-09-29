@@ -2,7 +2,7 @@
 
 Parker Hoppers turns spontaneous dog park visits into planned reunions. Check in when you get to the park, and friends in your network find out that your pup is there. It works the way parents coordinate playdates, but for dogs.
 
-This is a working prototype. The parks are real Charleston off-leash areas. People who join are real and shared live between phones. A made-up "demo pack" (Maya, Theo, Priya, Sam and Dana, marked **demo**) keeps the app from looking empty.
+This is a working prototype. The parks are real Charleston off-leash areas, plus The Jasper's residents-only dog run. Everyone and every dog you see at a park is a real person who joined, shared live between phones. The only exception is a made-up "demo pack" (Maya, Theo, Priya, Sam and Dana, marked **demo**), who show up only when you tap 🔔 to demo an arrival.
 
 ## Try it
 

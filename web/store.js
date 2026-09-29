@@ -1,13 +1,12 @@
 // Everything the app knows, plus every change it can make.
 //
 // Two sources are blended together:
-// - the demo pack (Maya, Theo, ...): made up, lives only in this browser, so the app is never empty;
+// - the demo pack (Maya, Theo, ...): made up, lives only in this browser, and only shows up at
+//   a park when the 🔔 demo button is tapped;
 // - real people who joined, from Supabase (cloud.js), shared live between everyone's phones.
-// Without a connection, or before joining, the app runs on the demo pack alone.
 
 import {
-  parks, parkById, dogs as seedDogs, people as seedPeople, MY_ID, FRIEND_IDS,
-  DEFAULT_ALERT_PARKS, seedCheckIns, seedPosts,
+  parks, parkById, dogs as seedDogs, people as seedPeople, MY_ID, FRIEND_IDS, DEFAULT_ALERT_PARKS,
 } from './data.js';
 import * as cloud from './cloud.js';
 
@@ -19,14 +18,14 @@ export let state = load();
 let online = false; // true once connected to Supabase and joined
 
 function fresh() {
-  const now = Date.now();
   return {
+    version: 2,
     dogs: structuredClone(seedDogs),
     people: structuredClone(seedPeople),
     myId: MY_ID,
     friendIds: [...FRIEND_IDS],
-    checkIns: seedCheckIns(now),
-    posts: seedPosts(now),
+    checkIns: [],
+    posts: [],
     alertParkIds: [...DEFAULT_ALERT_PARKS],
     hiddenAuthorIds: [],
     autoParkId: null, // the park you were checked into automatically, if any
@@ -45,11 +44,15 @@ function load() {
   s.hiddenAuthorIds ??= [];
   s.autoParkId ??= null;
   s.prefs.autoCheckIn ??= false;
-  expire(s);
-  // Keep the demo lively: if every demo friend has gone home since the last visit, bring a few back.
-  if (!s.checkIns.some((c) => c.personId !== s.myId)) {
-    s.checkIns.push(...seedCheckIns(Date.now()));
+  // Version 2: the demo pack no longer starts out at the parks or with posts, and Horse Lot and
+  // The Jasper joined "Your parks". Clean that out of browsers that saved the old version.
+  if ((s.version ?? 1) < 2) {
+    s.posts = s.posts.filter((p) => !['p1', 'p2', 'p3', 'p4', 'p5'].includes(p.id));
+    s.checkIns = s.checkIns.filter((c) => !s.friendIds.includes(c.personId));
+    s.alertParkIds = [...new Set([...s.alertParkIds, 'horse-lot', 'the-jasper'])];
+    s.version = 2;
   }
+  expire(s);
   return s;
 }
 
@@ -174,8 +177,7 @@ function dogsOf(personId, parkId) {
 export const visitors = (parkId) =>
   allCheckIns().filter((c) => c.parkId === parkId && current(c) && person(c.personId)).sort(newestFirst).map(hydrate);
 
-export const dogCount = (parkId) =>
-  visitors(parkId).reduce((n, v) => n + v.dogs.length, parkById(parkId)?.otherDogs ?? 0);
+export const dogCount = (parkId) => visitors(parkId).reduce((n, v) => n + v.dogs.length, 0);
 
 export const checkInFor = (personId) => allCheckIns().find((c) => c.personId === personId && current(c));
 

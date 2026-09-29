@@ -168,9 +168,9 @@ function parksScreen() {
     <div class="map-slot" id="map-main"></div>
     ${myParks.length ? `<h2 class="section">Your parks</h2><div class="stack">${myParks.map(parkRow).join('')}</div>` : ''}
     ${otherParks.length ? `<h2 class="section">More dog parks</h2><div class="stack">${otherParks.map(parkRow).join('')}</div>` : ''}
-    <p class="footnote">Public park locations and hours come from the City of Charleston and Charleston County Parks. ${store.isOnline()
-      ? 'Maya, Theo, Priya, Sam and Dana are a made-up demo pack; everyone else is a real person who joined.'
-      : 'The people and dogs are made up for this demo.'}</p>`;
+    <p class="footnote">Public park locations and hours come from the City of Charleston and Charleston County Parks. Tap 🔔 to have a made-up demo friend (Maya, Theo, Priya, Sam or Dana) arrive.${store.isOnline()
+      ? ' Everyone else is a real person who joined.'
+      : ''}</p>`;
 }
 
 function hereCard(c) {
@@ -195,7 +195,7 @@ function parkRow(p) {
         <div class="small muted">${esc(p.area)}${p.access ? ` · ${esc(p.access)}` : ''}</div>
         ${dogs.length
           ? `<div class="who">${avatars(dogs, 24)}<span class="small muted">${esc(dogNames(dogs, 2))}</span></div>`
-          : '<div class="who small muted">No friends here yet</div>'}
+          : '<div class="who small muted">No one here yet</div>'}
       </div>
       <div class="count"><b>${store.dogCount(p.id)}</b><span>pups</span></div>
       <span class="chev">${icon.chevron}</span>
@@ -227,8 +227,7 @@ function parkScreen(id) {
     </div>
     <h2 class="section">At the park now</h2>
     <div class="list">
-      ${visitors.length ? visitors.map(visitorRow).join('') : '<div class="row muted">None of your friends are here yet.</div>'}
-      ${p.otherDogs ? `<div class="row small muted">🐾 ${p.otherDogs} more pups from outside your network</div>` : ''}
+      ${visitors.length ? visitors.map(visitorRow).join('') : '<div class="row muted">No one’s checked in here yet.</div>'}
     </div>
     ${store.state.prefs.autoCheckIn && p.zone && !amHere
       ? `<button class="link-btn demo-arrive" data-action="pretend-arrive" data-park="${p.id}">Demo: pretend I just walked in</button>`
@@ -620,7 +619,7 @@ function mountMap(slotId, key, list, focus) {
     const marker = L.marker([p.lat, p.lng], {
       keyboard: false,
       title: p.name,
-      icon: L.divIcon({ className: 'pin-wrap', iconSize: null, html: `<span class="pin ${friendsHere ? 'busy' : ''}">🐾 ${n}</span>` }),
+      icon: L.divIcon({ className: 'pin-wrap', iconSize: null, html: `<span class="pin ${friendsHere ? 'busy' : ''}">🐾${n ? ` ${n}` : ''}</span>` }),
     });
     if (!focus) marker.on('click', () => { location.hash = `#/park/${p.id}`; });
     marker.addTo(m.layer);

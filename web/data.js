@@ -1,6 +1,6 @@
 // Parks are real Charleston off-leash areas (City of Charleston dog park list and
 // Charleston County Parks), plus The Jasper's residents-only dog park. The demo pack's
-// people, dogs and posts are made up.
+// people and dogs are made up; they only show up at a park when the 🔔 demo button is tapped.
 
 // `zone` is the circle (in meters) where automatic check-in kicks in, and `accuracy` the
 // worst GPS precision it will trust there. `zone: null` means manual check-in only.
@@ -9,38 +9,38 @@ export const parks = [
     id: 'hazel-parker', name: 'Hazel Parker Off-Leash Area', area: 'French Quarter',
     address: '70 E Bay St', lat: 32.77483, lng: -79.92624,
     hours: [['dawn', 9], [17, 'dusk']], hoursText: 'Dawn–9 AM and 5 PM–dusk',
-    fenced: false, otherDogs: 3, zone: { radius: 60 },
+    fenced: false, zone: { radius: 60 },
   },
   {
     id: 'cannon-park', name: 'Cannon Park', area: 'Harleston Village',
     address: '131 Rutledge Ave', lat: 32.78287, lng: -79.94416,
     hours: [['dawn', 9], [17, 'dusk']], hoursText: 'Dawn–9 AM and 5 PM–dusk',
-    fenced: false, otherDogs: 5, zone: { radius: 80 },
+    fenced: false, zone: { radius: 80 },
   },
   {
     id: 'brittlebank', name: 'Brittlebank Park', area: 'West Side',
     address: '185 Lockwood Dr', lat: 32.78802, lng: -79.96057,
     hours: [['dawn', 'dusk']], hoursText: 'Dawn–dusk',
-    fenced: false, otherDogs: 2, zone: { radius: 120 },
+    fenced: false, zone: { radius: 120 },
   },
   {
     id: 'white-point', name: 'White Point Garden', area: 'South of Broad',
     address: '2 Murray Blvd', lat: 32.76981, lng: -79.93035,
     hours: [['dawn', 9], [17, 23]], hoursText: 'Dawn–9 AM and 5–11 PM',
-    fenced: false, otherDogs: 4, zone: { radius: 100 },
+    fenced: false, zone: { radius: 100 },
   },
   {
     id: 'horse-lot', name: 'Horse Lot Off-Leash Area', area: 'Harleston Village',
     address: '2 Chisolm St', lat: 32.77442, lng: -79.94154,
     hours: [['dawn', 'dusk']], hoursText: 'Dawn–dusk',
-    fenced: false, otherDogs: 2, zone: { radius: 50 },
+    fenced: false, zone: { radius: 50 },
   },
   {
     // Amenity at The Jasper apartments, not on the city's public list.
     id: 'the-jasper', name: 'The Jasper Dog Park', area: 'Harleston Village',
     address: '310 Broad St', lat: 32.776453, lng: -79.943101,
     hours: null, hoursText: 'Set by the building', access: 'Residents only',
-    fenced: null, otherDogs: 2,
+    fenced: null,
     // Tight circle on the dog run itself, trusting only precise (outdoor) GPS, so being
     // inside the building doesn't count.
     zone: { radius: 20, accuracy: 15 },
@@ -49,13 +49,13 @@ export const parks = [
     id: 'ackerman', name: 'Ackerman Park Dog Park', area: 'West Ashley',
     address: '55 Sycamore Ave', lat: 32.78940, lng: -79.98879,
     hours: [['dawn', 'dusk']], hoursText: 'Dawn–dusk',
-    fenced: true, otherDogs: 1, zone: { radius: 90 },
+    fenced: true, zone: { radius: 90 },
   },
   {
     id: 'james-island', name: 'James Island County Park Dog Park', area: 'James Island',
     address: '871 Riverland Dr', lat: 32.73485, lng: -79.98947,
     hours: null, hoursText: 'County park hours · small entry fee',
-    fenced: true, otherDogs: 6,
+    fenced: true,
     // Where the dog park sits inside the 600-acre county park isn't mapped, so no auto check-in.
     zone: null,
   },
@@ -87,49 +87,8 @@ export const people = {
 
 export const FRIEND_IDS = ['maya', 'theo', 'priya', 'sam', 'dana'];
 
-// Parks you get arrival alerts for when you first open the app.
-export const DEFAULT_ALERT_PARKS = ['hazel-parker', 'cannon-park'];
-
-const MIN = 60_000;
-const HOUR = 60 * MIN;
-
-export function seedCheckIns(now) {
-  return [
-    { id: `c1-${now}`, personId: 'maya', dogIds: ['luna'], parkId: 'hazel-parker', arrivedAt: now - 12 * MIN },
-    { id: `c2-${now}`, personId: 'theo', dogIds: ['waffles', 'pickles'], parkId: 'hazel-parker', arrivedAt: now - 35 * MIN },
-    { id: `c3-${now}`, personId: 'priya', dogIds: ['mochi'], parkId: 'brittlebank', arrivedAt: now - 5 * MIN },
-  ];
-}
-
-export function seedPosts(now) {
-  return [
-    {
-      id: 'p1', authorId: 'maya', dogId: 'luna', parkId: 'hazel-parker',
-      caption: 'Luna finally caught the frisbee mid-air 🥏 Three weeks of practice!',
-      postedAt: now - 50 * MIN, likes: 14, likedByMe: false, emoji: '🥏', colors: ['#5B5FD6', '#A77BF3'],
-    },
-    {
-      id: 'p2', authorId: 'theo', dogId: 'waffles', parkId: 'cannon-park',
-      caption: 'Waffles vs. the puddle. The puddle won.',
-      postedAt: now - 3 * HOUR, likes: 23, likedByMe: false, emoji: '💦', colors: ['#C98A4B', '#F2A23A'],
-    },
-    {
-      id: 'p3', authorId: 'priya', dogId: 'mochi', parkId: 'brittlebank',
-      caption: 'Mochi made three new friends and refused to leave 🐾',
-      postedAt: now - 6 * HOUR, likes: 9, likedByMe: false, emoji: '🐕', colors: ['#E5484D', '#FF6B8B'],
-    },
-    {
-      id: 'p4', authorId: 'sam', dogId: 'bruno', parkId: 'james-island',
-      caption: "Bruno's first swim in the lake at James Island. Zoomies achieved.",
-      postedAt: now - 26 * HOUR, likes: 31, likedByMe: false, emoji: '🌊', colors: ['#2BB5B8', '#5B8DEF'],
-    },
-    {
-      id: 'p5', authorId: 'dana', dogId: 'olive', parkId: 'white-point',
-      caption: 'Golden hour at the Battery with Olive.',
-      postedAt: now - 50 * HOUR, likes: 18, likedByMe: false, emoji: '🌅', colors: ['#FF6B8B', '#F2A23A'],
-    },
-  ];
-}
+// "Your parks" (arrival alerts on) when you first open the app.
+export const DEFAULT_ALERT_PARKS = ['hazel-parker', 'cannon-park', 'horse-lot', 'the-jasper'];
 
 // Rough Charleston sunrise/sunset by month, in hours (local time). Good enough for "dawn" and "dusk".
 const SUN = [
