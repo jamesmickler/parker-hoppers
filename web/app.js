@@ -167,7 +167,7 @@ function parksScreen() {
     <div class="map-slot" id="map-main"></div>
     ${myParks.length ? `<h2 class="section">Your parks</h2><div class="stack">${myParks.map(parkRow).join('')}</div>` : ''}
     ${otherParks.length ? `<h2 class="section">More dog parks</h2><div class="stack">${otherParks.map(parkRow).join('')}</div>` : ''}
-    <p class="footnote">Park locations and hours come from the City of Charleston and Charleston County Parks. ${store.isOnline()
+    <p class="footnote">Public park locations and hours come from the City of Charleston and Charleston County Parks. ${store.isOnline()
       ? 'Maya, Theo, Priya, Sam and Dana are a made-up demo pack; everyone else is a real person who joined.'
       : 'The people and dogs are made up for this demo.'}</p>`;
 }
@@ -191,7 +191,7 @@ function parkRow(p) {
     <a class="card park-row" href="#/park/${p.id}">
       <div class="grow">
         <div class="name">${esc(p.name)}${store.alertsOn(p.id) ? ` <span class="bell-mini" title="Arrival alerts on">${icon.bell}</span>` : ''}</div>
-        <div class="small muted">${esc(p.area)}</div>
+        <div class="small muted">${esc(p.area)}${p.access ? ` · ${esc(p.access)}` : ''}</div>
         ${dogs.length
           ? `<div class="who">${avatars(dogs, 24)}<span class="small muted">${esc(dogNames(dogs, 2))}</span></div>`
           : '<div class="who small muted">No friends here yet</div>'}
@@ -214,8 +214,9 @@ function parkScreen(id) {
     <h1 class="title">${esc(p.name)}</h1>
     <div class="muted">${esc(p.area)} · ${esc(p.address)}</div>
     <div class="badges">
+      ${p.access ? `<span class="badge">🔒 ${esc(p.access)}</span>` : ''}
       ${status ? `<span class="badge ${status.open ? 'open' : ''}">${esc(status.text)}</span>` : ''}
-      <span class="badge">${p.fenced ? 'Fenced' : 'Open field'}</span>
+      ${p.fenced == null ? '' : `<span class="badge">${p.fenced ? 'Fenced' : 'Open field'}</span>`}
     </div>
     <div class="btn-row">
       ${amHere

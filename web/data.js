@@ -1,6 +1,6 @@
 // Parks are real Charleston off-leash areas (City of Charleston dog park list and
-// Charleston County Parks). People, dogs and posts are made up for the demo and get
-// replaced by real accounts once the app has a server.
+// Charleston County Parks), plus The Jasper's residents-only dog park. The demo pack's
+// people, dogs and posts are made up.
 
 export const parks = [
   {
@@ -32,6 +32,13 @@ export const parks = [
     address: '2 Chisolm St', lat: 32.77442, lng: -79.94154,
     hours: [['dawn', 'dusk']], hoursText: 'Dawn–dusk',
     fenced: false, otherDogs: 2,
+  },
+  {
+    // Amenity at The Jasper apartments, not on the city's public list.
+    id: 'the-jasper', name: 'The Jasper Dog Park', area: 'Harleston Village',
+    address: '310 Broad St', lat: 32.77644, lng: -79.94311,
+    hours: null, hoursText: 'Set by the building', access: 'Residents only',
+    fenced: null, otherDogs: 2,
   },
   {
     id: 'ackerman', name: 'Ackerman Park Dog Park', area: 'West Ashley',
