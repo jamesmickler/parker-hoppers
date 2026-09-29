@@ -102,12 +102,23 @@ final class SupabaseClient {
         _ = try await request("POST", path, json: row, prefer: prefer)
     }
 
+    /// Changes rows matching a filter, e.g. `update("dogs", "id=eq.\(id)", ["name": "Luna"])`.
+    func update(_ table: String, _ filter: String, _ changes: [String: Any]) async throws {
+        _ = try await request("PATCH", "rest/v1/\(table)?\(filter)", json: changes, prefer: "return=minimal")
+    }
+
     /// Deletes rows matching a filter, e.g. `delete("posts", "id=eq.\(id)")`.
     func delete(_ table: String, _ filter: String) async throws {
         _ = try await request("DELETE", "rest/v1/\(table)?\(filter)")
     }
 
     // MARK: Server functions
+
+    /// Calls a database function (supabase/migrations) that returns text, e.g. `create_invite`.
+    func rpc(_ name: String, _ args: [String: Any] = [:]) async throws -> String {
+        let data = try await request("POST", "rest/v1/rpc/\(name)", json: args)
+        return try decoder.decode(String.self, from: data)
+    }
 
     /// Runs one of the project's Edge Functions (e.g. "notify-arrival") as the signed-in person.
     func invokeFunction(_ name: String) async throws {

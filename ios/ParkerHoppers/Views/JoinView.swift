@@ -8,6 +8,9 @@ struct JoinView: View {
     @State private var dogName = ""
     @State private var breed = ""
     @State private var color = colorChoices[1]
+    @State private var size: DogSize?
+    @State private var comfort: DogComfort?
+    @State private var inviteCode = ""
     @State private var pickerItem: PhotosPickerItem?
     @State private var photo: UIImage?
     @State private var saving = false
@@ -38,7 +41,24 @@ struct JoinView: View {
                     field("Your dog’s name", text: $dogName)
                     field("Breed (optional)", text: $breed)
                 }
-                DogColorPicker(selection: $color)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    sectionLabel("Size")
+                    DogSizePicker(selection: $size)
+                    sectionLabel("With other dogs")
+                    DogComfortPicker(selection: $comfort)
+                        .pickerStyle(.menu)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.vertical, 6)
+                        .padding(.horizontal, 4)
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+                    sectionLabel("Badge color")
+                    DogColorPicker(selection: $color)
+                    sectionLabel("Invite code from a friend (optional)")
+                    field("e.g. K7P2-9QXM", text: $inviteCode)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
+                }
 
                 Button {
                     Task { await join() }
@@ -50,7 +70,7 @@ struct JoinView: View {
                 .controlSize(.large)
                 .disabled(!ready || saving)
 
-                Text("No email or password. Everyone testing Park Hoppers can see your first name, your dogs, and the park you check in at.")
+                Text("No email or password. Only friends (people you invite, or who invite you) can see your name, your dogs and where you check in.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -59,6 +79,14 @@ struct JoinView: View {
         }
         .background(Color(.systemGroupedBackground))
         .scrollDismissesKeyboard(.interactively)
+    }
+
+    private func sectionLabel(_ text: String) -> some View {
+        Text(text.uppercased())
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+            .padding(.top, 6)
     }
 
     private func field(_ placeholder: String, text: Binding<String>) -> some View {
@@ -71,9 +99,10 @@ struct JoinView: View {
         saving = true
         defer { saving = false }
         let dog = Dog(id: "", name: dogName.trimmingCharacters(in: .whitespaces),
-                      breed: breed.trimmingCharacters(in: .whitespaces).isEmpty ? "Good dog" : breed, colorHex: color)
+                      breed: breed.trimmingCharacters(in: .whitespaces).isEmpty ? "Good dog" : breed, colorHex: color,
+                      size: size, comfort: comfort)
         await state.attempt {
-            try await state.join(name: name.trimmingCharacters(in: .whitespaces), dog: dog, photo: photo)
+            try await state.join(name: name.trimmingCharacters(in: .whitespaces), dog: dog, photo: photo, inviteCode: inviteCode)
         }
     }
 }

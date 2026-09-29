@@ -158,3 +158,45 @@ struct DogColorPicker: View {
         }
     }
 }
+
+/// Small / Medium / Large buttons. Tapping the chosen one again clears it.
+struct DogSizePicker: View {
+    @Binding var selection: DogSize?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(DogSize.allCases) { size in
+                let chosen = selection == size
+                Button {
+                    selection = chosen ? nil : size
+                } label: {
+                    VStack(spacing: 2) {
+                        Text(size.label).font(.subheadline.bold()).foregroundStyle(.primary)
+                        Text(size.hint).font(.caption2).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(chosen ? Color.accentColor.opacity(0.15) : Color(.secondarySystemGroupedBackground),
+                                in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(chosen ? Color.accentColor : .clear, lineWidth: 2))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(chosen ? .isSelected : [])
+            }
+        }
+    }
+}
+
+/// How a dog does with other dogs, as a menu.
+struct DogComfortPicker: View {
+    @Binding var selection: DogComfort?
+
+    var body: some View {
+        Picker("With other dogs", selection: $selection) {
+            Text("Choose one…").tag(DogComfort?.none)
+            ForEach(DogComfort.allCases) { comfort in
+                Text(comfort.label).tag(DogComfort?.some(comfort))
+            }
+        }
+    }
+}

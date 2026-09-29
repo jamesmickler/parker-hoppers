@@ -12,7 +12,7 @@ final class Realtime {
     }
 
     private static let topic = "realtime:parker-hoppers"
-    private static let tables = ["profiles", "dogs", "check_ins", "posts", "post_likes"]
+    private static let tables = ["profiles", "dogs", "check_ins", "posts", "post_likes", "friendships"]
 
     private var socket: URLSessionWebSocketTask?
     private var heartbeat: Timer?

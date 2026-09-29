@@ -7,6 +7,7 @@ struct MeView: View {
     @Environment(\.openURL) private var openURL
     @State private var showingPlus = false
     @State private var showingAddDog = false
+    @State private var editingDog: Dog?
     @State private var confirmingLeave = false
 
     var body: some View {
@@ -14,13 +15,22 @@ struct MeView: View {
             List {
                 Section("Your pack") {
                     ForEach(state.myDogs) { dog in
-                        HStack(spacing: 12) {
-                            DogAvatar(dog: dog)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(dog.name).font(.headline)
-                                Text(dog.breed).font(.subheadline).foregroundStyle(.secondary)
+                        Button { editingDog = dog } label: {
+                            HStack(spacing: 12) {
+                                DogAvatar(dog: dog)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(dog.name).font(.headline).foregroundStyle(.primary)
+                                    Text([dog.breedText, dog.details.isEmpty ? "Tap to add size and comfort with other dogs" : dog.details]
+                                        .filter { !$0.isEmpty }.joined(separator: " · "))
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 0)
+                                Image(systemName: "chevron.right").font(.footnote.bold()).foregroundStyle(.tertiary)
                             }
+                            .contentShape(Rectangle())
                         }
+                        .buttonStyle(.plain)
                     }
                     Button { showingAddDog = true } label: { Label("Add a dog", systemImage: "plus") }
                 }
@@ -105,7 +115,8 @@ struct MeView: View {
             }
             .navigationTitle(state.me?.name ?? "Me")
             .sheet(isPresented: $showingPlus) { PlusView() }
-            .sheet(isPresented: $showingAddDog) { AddDogSheet() }
+            .sheet(isPresented: $showingAddDog) { DogFormSheet() }
+            .sheet(item: $editingDog) { DogFormSheet(editing: $0) }
             .confirmationDialog("Leave Park Hoppers?", isPresented: $confirmingLeave, titleVisibility: .visible) {
                 Button("Leave and delete my data", role: .destructive) {
                     Task { await state.attempt { try await state.leave() } }
@@ -141,32 +152,53 @@ private struct AutoCheckInStatus: View {
     }
 }
 
-private struct AddDogSheet: View {
+/// Adding a new dog, or editing one of mine.
+private struct DogFormSheet: View {
     @Environment(AppState.self) private var state
     @Environment(\.dismiss) private var dismiss
-    @State private var name = ""
-    @State private var breed = ""
-    @State private var color = colorChoices[1]
+    let editing: Dog?
+    @State private var name: String
+    @State private var breed: String
+    @State private var color: String
+    @State private var size: DogSize?
+    @State private var comfort: DogComfort?
     @State private var pickerItem: PhotosPickerItem?
     @State private var photo: UIImage?
     @State private var saving = false
+
+    init(editing: Dog? = nil) {
+        self.editing = editing
+        _name = State(initialValue: editing?.name ?? "")
+        _breed = State(initialValue: editing?.breedText ?? "")
+        _color = State(initialValue: editing?.colorHex ?? colorChoices[1])
+        _size = State(initialValue: editing?.size)
+        _comfort = State(initialValue: editing?.comfort)
+    }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
-                    DogPhotoPicker(item: $pickerItem, photo: $photo, color: color, name: name)
+                    DogPhotoPicker(item: $pickerItem, photo: $photo, color: color, name: name, photoURL: editing?.photoURL)
                         .listRowBackground(Color.clear)
                 }
                 Section {
                     TextField("Name", text: $name)
                     TextField("Breed (optional)", text: $breed)
                 }
+                Section("Size") {
+                    DogSizePicker(selection: $size)
+                        .listRowBackground(Color.clear)
+                        .listRowInsets(EdgeInsets())
+                }
+                Section {
+                    DogComfortPicker(selection: $comfort)
+                }
                 Section("Badge color") {
                     DogColorPicker(selection: $color)
                 }
             }
-            .navigationTitle("Add a dog")
+            .navigationTitle(editing.map { "Edit \($0.name)" } ?? "Add a dog")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
@@ -175,8 +207,16 @@ private struct AddDogSheet: View {
                         Task {
                             saving = true
                             let dogName = name.trimmingCharacters(in: .whitespaces)
-                            let dog = Dog(id: "", name: dogName, breed: breed.isEmpty ? "Good dog" : breed, colorHex: color)
-                            if await state.attempt({ try await state.addDog(dog, photo: photo) }) {
+                            let breedName = breed.trimmingCharacters(in: .whitespaces)
+                            let dog = Dog(id: editing?.id ?? "", name: dogName, breed: breedName.isEmpty ? "Good dog" : breedName,
+                                          colorHex: color, photoURL: editing?.photoURL, size: size, comfort: comfort)
+                            if let editing {
+                                if await state.attempt({ try await state.updateDog(dog, photo: photo) }) {
+                                    dismiss()
+                                    state.showBanner("\(dogName) is updated", editing.details == dog.details
+                                                     ? "Saved." : "Friends see the new details at the park.")
+                                }
+                            } else if await state.attempt({ try await state.addDog(dog, photo: photo) }) {
                                 dismiss()
                                 state.showBanner("\(dogName) joined your pack!", "You can bring them when you check in.")
                             }
@@ -196,6 +236,8 @@ struct DogPhotoPicker: View {
     @Binding var photo: UIImage?
     let color: String
     let name: String
+    /// The dog's current photo, when editing.
+    var photoURL: URL?
 
     var body: some View {
         PhotosPicker(selection: $item, matching: .images) {
@@ -203,6 +245,8 @@ struct DogPhotoPicker: View {
                 Circle().fill(Color(hex: color).gradient)
                 if let photo {
                     Image(uiImage: photo).resizable().scaledToFill()
+                } else if let photoURL {
+                    AsyncImage(url: photoURL) { image in image.resizable().scaledToFill() } placeholder: { Color.clear }
                 } else if let first = name.first {
                     Text(String(first).uppercased()).font(.system(size: 40, weight: .bold)).foregroundStyle(.white)
                 } else {

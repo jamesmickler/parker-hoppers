@@ -17,6 +17,7 @@ enum Cloud {
     private struct ProfileRow: Decodable { let id: String; let name: String }
     private struct DogRow: Decodable {
         let id: String; let ownerId: String; let name: String; let breed: String; let color: String; let photoUrl: String?
+        let size: String?; let comfort: String?
     }
     private struct CheckInRow: Decodable { let userId: String; let parkId: String; let dogIds: [String]; let arrivedAt: Date }
     private struct PostRow: Decodable {
@@ -31,7 +32,7 @@ enum Cloud {
     static func load(myID: String) async throws -> CloudSnapshot {
         let since = encode(ISO8601DateFormatter().string(from: .now.addingTimeInterval(-checkInWindow)))
         async let profileRows: [ProfileRow] = db.select("profiles", "select=id,name")
-        async let dogRows: [DogRow] = db.select("dogs", "select=id,owner_id,name,breed,color,photo_url&order=created_at")
+        async let dogRows: [DogRow] = db.select("dogs", "select=id,owner_id,name,breed,color,photo_url,size,comfort&order=created_at")
         async let checkInRows: [CheckInRow] = db.select("check_ins", "select=user_id,park_id,dog_ids,arrived_at&arrived_at=gt.\(since)")
         async let postRows: [PostRow] = db.select("posts", "select=id,author_id,dog_id,park_id,caption,photo_url,created_at&order=created_at.desc&limit=60")
         async let likeRows: [LikeRow] = db.select("post_likes", "select=post_id,user_id")
@@ -43,7 +44,9 @@ enum Cloud {
         }
         for row in try await dogRows {
             snapshot.dogs[row.id] = Dog(id: row.id, name: row.name, breed: row.breed, colorHex: row.color,
-                                        photoURL: row.photoUrl.flatMap(URL.init(string:)))
+                                        photoURL: row.photoUrl.flatMap(URL.init(string:)),
+                                        size: row.size.flatMap(DogSize.init(rawValue:)),
+                                        comfort: row.comfort.flatMap(DogComfort.init(rawValue:)))
             snapshot.profiles[row.ownerId]?.dogIDs.append(row.id)
         }
         snapshot.checkIns = try await checkInRows.map {
@@ -74,9 +77,37 @@ enum Cloud {
     }
 
     static func addDog(_ dog: Dog, photo: Data?) async throws {
-        var row: [String: Any] = ["name": dog.name, "breed": dog.breed, "color": dog.colorHex]
+        var row = fields(of: dog)
         if let photo { row["photo_url"] = try await db.uploadPhoto(photo).absoluteString }
         try await db.insert("dogs", row)
+    }
+
+    /// Saves changes to one of my dogs, and a new photo if one was picked.
+    static func updateDog(_ dog: Dog, photo: Data?) async throws {
+        var changes = fields(of: dog)
+        if let photo { changes["photo_url"] = try await db.uploadPhoto(photo).absoluteString }
+        try await db.update("dogs", "id=eq.\(dog.id)", changes)
+    }
+
+    private static func fields(of dog: Dog) -> [String: Any] {
+        ["name": dog.name, "breed": dog.breed, "color": dog.colorHex,
+         "size": dog.size?.rawValue ?? NSNull(), "comfort": dog.comfort?.rawValue ?? NSNull()]
+    }
+
+    // MARK: Friends (see supabase/migrations/20260929030000_friends_and_dog_details.sql)
+
+    /// Makes a one-time invite code (works for 7 days).
+    static func createInvite() async throws -> String {
+        try await db.rpc("create_invite")
+    }
+
+    /// Uses a friend's invite code ("K7P2-9QXM" or "k7p29qxm" both work). Returns the friend's name.
+    static func acceptInvite(_ code: String) async throws -> String {
+        try await db.rpc("accept_invite", ["invite_code": code])
+    }
+
+    static func removeFriend(myID: String, friendID: String) async throws {
+        try await db.delete("friendships", "user_a=in.(\(myID),\(friendID))&user_b=in.(\(myID),\(friendID))")
     }
 
     static func checkIn(myID: String, parkID: String, dogIDs: [String]) async throws {

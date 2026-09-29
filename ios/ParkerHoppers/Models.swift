@@ -7,8 +7,62 @@ struct Dog: Identifiable, Hashable {
     var breed: String
     var colorHex: String
     var photoURL: URL?
+    var size: DogSize?
+    var comfort: DogComfort?
 
     var color: Color { Color(hex: colorHex) }
+
+    /// The breed, unless it's the "Good dog" filler used when none was given.
+    var breedText: String { breed == "Good dog" ? "" : breed }
+
+    /// "Large · Loves all dogs" (whatever's known about the dog).
+    var details: String {
+        [size?.label, comfort?.label].compactMap { $0 }.joined(separator: " · ")
+    }
+
+    /// Shy dogs and dogs that need space get a heads-up on the park page.
+    var needsCare: Bool { comfort == .shy || comfort == .needsSpace }
+}
+
+// Dog details. The raw values are stored in the database (dogs.size, dogs.comfort);
+// keep them in sync with web/data.js.
+enum DogSize: String, CaseIterable, Identifiable {
+    case small, medium, large
+    var id: String { rawValue }
+    var label: String { rawValue.capitalized }
+    var hint: String {
+        switch self {
+        case .small: "under 25 lb"
+        case .medium: "25–50 lb"
+        case .large: "over 50 lb"
+        }
+    }
+}
+
+enum DogComfort: String, CaseIterable, Identifiable {
+    case lovesAll = "loves_all"
+    case smallDogs = "small_dogs"
+    case bigDogs = "big_dogs"
+    case shy
+    case needsSpace = "needs_space"
+    var id: String { rawValue }
+    var label: String {
+        switch self {
+        case .lovesAll: "Loves all dogs"
+        case .smallDogs: "Best with small dogs"
+        case .bigDogs: "Best with big dogs"
+        case .shy: "Shy, warms up slowly"
+        case .needsSpace: "Needs space from other dogs"
+        }
+    }
+    /// For the park page: "Mochi needs space from other dogs".
+    var headsUp: String? {
+        switch self {
+        case .shy: "is shy and warms up slowly"
+        case .needsSpace: "needs space from other dogs"
+        default: nil
+        }
+    }
 }
 
 struct Person: Identifiable, Hashable {

@@ -3,12 +3,12 @@
 /// Same pack as the website (web/data.js).
 enum DemoPack {
     static let dogs: [Dog] = [
-        Dog(id: "luna", name: "Luna", breed: "Border Collie", colorHex: "#5B5FD6"),
-        Dog(id: "waffles", name: "Waffles", breed: "Corgi", colorHex: "#C98A4B"),
-        Dog(id: "pickles", name: "Pickles", breed: "Dachshund", colorHex: "#34A853"),
-        Dog(id: "mochi", name: "Mochi", breed: "Shiba Inu", colorHex: "#E5484D"),
-        Dog(id: "bruno", name: "Bruno", breed: "Boxer", colorHex: "#2BB5B8"),
-        Dog(id: "olive", name: "Olive", breed: "Labradoodle", colorHex: "#FF6B8B"),
+        Dog(id: "luna", name: "Luna", breed: "Border Collie", colorHex: "#5B5FD6", size: .medium, comfort: .lovesAll),
+        Dog(id: "waffles", name: "Waffles", breed: "Corgi", colorHex: "#C98A4B", size: .small, comfort: .bigDogs),
+        Dog(id: "pickles", name: "Pickles", breed: "Dachshund", colorHex: "#34A853", size: .small, comfort: .smallDogs),
+        Dog(id: "mochi", name: "Mochi", breed: "Shiba Inu", colorHex: "#E5484D", size: .medium, comfort: .needsSpace),
+        Dog(id: "bruno", name: "Bruno", breed: "Boxer", colorHex: "#2BB5B8", size: .large, comfort: .lovesAll),
+        Dog(id: "olive", name: "Olive", breed: "Labradoodle", colorHex: "#FF6B8B", size: .large, comfort: .shy),
     ]
 
     static let people: [Person] = [

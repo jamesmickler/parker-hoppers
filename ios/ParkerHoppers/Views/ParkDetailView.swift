@@ -72,6 +72,7 @@ struct ParkDetailView: View {
                 .controlSize(.large)
 
                 Text("At the park now").font(.headline).padding(.top, 6)
+                ParkMix(dogs: visitors.flatMap(state.dogs(of:)))
                 Card {
                     if visitors.isEmpty {
                         Text("No one’s checked in here yet.").foregroundStyle(.secondary)
@@ -131,6 +132,28 @@ private struct InfoRow: View {
     }
 }
 
+/// "Right now: 2 large · 1 small", plus a heads-up about dogs that are shy or need space.
+private struct ParkMix: View {
+    let dogs: [Dog]
+
+    var body: some View {
+        let mix = DogSize.allCases.compactMap { size -> String? in
+            let count = dogs.filter { $0.size == size }.count
+            return count > 0 ? "\(count) \(size.label.lowercased())" : nil
+        }
+        if !mix.isEmpty {
+            Text("🐕 Right now: \(mix.joined(separator: " · "))").font(.subheadline).foregroundStyle(.secondary)
+        }
+        ForEach(dogs.filter(\.needsCare)) { dog in
+            Text("⚠️ \(dog.name) \(dog.comfort?.headsUp ?? "")")
+                .font(.subheadline)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(10)
+                .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+}
+
 private struct VisitorRow: View {
     @Environment(AppState.self) private var state
     let checkIn: CheckIn
@@ -143,6 +166,12 @@ private struct VisitorRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(dogNames(dogs)).font(.headline)
                 Text("\(who) · arrived \(timeAgo(checkIn.arrivedAt))").font(.subheadline).foregroundStyle(.secondary)
+                let details = dogs.count == 1
+                    ? dogs[0].details
+                    : dogs.filter { !$0.details.isEmpty }.map { "\($0.name): \($0.details)" }.joined(separator: " · ")
+                if !details.isEmpty {
+                    Text(details).font(.subheadline).foregroundStyle(.secondary)
+                }
             }
             Spacer(minLength: 0)
         }

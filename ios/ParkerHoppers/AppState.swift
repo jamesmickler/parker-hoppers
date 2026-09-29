@@ -252,12 +252,39 @@ final class AppState {
         }
     }
 
-    func join(name: String, dog: Dog, photo: UIImage?) async throws {
+    /// Joins, then uses a friend's invite code if one was typed in.
+    func join(name: String, dog: Dog, photo: UIImage?, inviteCode: String = "") async throws {
         myID = try await Cloud.join(name: name, dog: dog, photo: photo?.jpeg(maxSide: 320))
         await refresh()
         status = .ready
         goLive()
         showBanner("Welcome to the pack, \(name)!", "Tap a park and “We’re here!” when you and \(dog.name) arrive.")
+        if !inviteCode.trimmingCharacters(in: .whitespaces).isEmpty {
+            await attempt { try await acceptInvite(inviteCode) }
+        }
+    }
+
+    // MARK: - Friends
+    // Only friends see each other; friendships start from a one-time invite code.
+
+    /// A one-time invite: the code, and a link that opens the website with it filled in.
+    func createInvite() async throws -> (code: String, link: URL) {
+        let code = try await Cloud.createInvite()
+        return (code, URL(string: "https://jamesmickler.github.io/parker-hoppers/?invite=\(code)")!)
+    }
+
+    func acceptInvite(_ code: String) async throws {
+        let name = try await Cloud.acceptInvite(code)
+        await refresh()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        showBanner("You and \(name) are now friends! 🐾", "You’ll see each other’s dogs at the park.")
+    }
+
+    func removeFriend(_ friend: Person) async throws {
+        guard let myID else { return }
+        try await Cloud.removeFriend(myID: myID, friendID: friend.id)
+        await refresh()
+        showBanner("Friend removed", "You and \(friend.name) no longer see each other.")
     }
 
     func checkIn(park: Park, dogIDs: [String], auto: Bool = false) async throws {
@@ -340,6 +367,11 @@ final class AppState {
         await refresh()
     }
 
+    func updateDog(_ dog: Dog, photo: UIImage?) async throws {
+        try await Cloud.updateDog(dog, photo: photo?.jpeg(maxSide: 320))
+        await refresh()
+    }
+
     func leave() async throws {
         guard let myID else { return }
         try await Cloud.leave(myID: myID)
@@ -408,7 +440,8 @@ final class AppState {
         }
     }
 
-    private func friendly(_ error: Error) -> String {
+    /// Turns a server error into something a person can act on.
+    func friendly(_ error: Error) -> String {
         if error is URLError { return "Check your internet connection and try again." }
         let message = error.localizedDescription
         if message.localizedCaseInsensitiveContains("anonymous sign-ins are disabled") {
