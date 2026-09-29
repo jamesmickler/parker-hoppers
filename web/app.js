@@ -3,6 +3,7 @@
 import { parks, parkById, offLeashStatus, distanceMeters } from './data.js';
 import * as store from './store.js';
 import * as auto from './autocheckin.js';
+import * as push from './push.js';
 
 const $view = document.getElementById('view');
 const $tabs = document.getElementById('tabs');
@@ -164,6 +165,7 @@ function parksScreen() {
         <button class="icon-btn" data-action="locate" aria-label="Find the park I'm at">${icon.locate}</button>
       </div>
     </header>
+    ${controlsCard()}
     ${mine ? hereCard(mine) : ''}
     <div class="map-slot" id="map-main"></div>
     ${myParks.length ? `<h2 class="section">Your parks</h2><div class="stack">${myParks.map(parkRow).join('')}</div>` : ''}
@@ -171,6 +173,40 @@ function parksScreen() {
     <p class="footnote">Public park locations and hours come from the City of Charleston and Charleston County Parks.${store.demoMode()
       ? ' Demo Mode is on: tap Demo to have a made-up friend (Maya, Theo, Priya, Sam or Dana) arrive.'
       : ''}</p>`;
+}
+
+/** What the Notifications switch says, and whether it can be flipped on this phone. */
+function pushInfo() {
+  const p = store.pushStatus();
+  if (!store.isOnline()) return { text: 'Join Park Hoppers to get notified when friends arrive', disabled: true };
+  if (p.on) return { text: 'On · you’ll get a notification when friends arrive at your parks', disabled: false };
+  if (p.needsHomeScreen) return { text: 'On iPhone, first add Park Hoppers to your Home Screen: tap Share, then Add to Home Screen', disabled: true };
+  if (!p.supported) return { text: 'This browser can’t show notifications', disabled: true };
+  if (p.blocked) return { text: 'Blocked. Allow notifications for Park Hoppers in your phone’s settings', disabled: true };
+  return { text: 'Get a notification when friends arrive at your parks, even with the app closed', disabled: false };
+}
+
+/** The two switches at the top of Parks: location tracking and notifications. */
+function controlsCard() {
+  const { prefs } = store.state;
+  const pushNow = pushInfo();
+  return `
+    <div class="list controls">
+      <div class="row">
+        <span class="control-icon">📍</span>
+        <div class="grow"><b>Auto check-in</b>
+          <div class="small muted">${prefs.autoCheckIn
+            ? 'On · uses your location to check you in at your parks while the app is open'
+            : 'Off · your location isn’t used. Turn on to check in automatically at your parks'}</div>
+        </div>
+        ${toggle('toggle-auto', prefs.autoCheckIn, 'aria-label="Auto check-in"')}
+      </div>
+      <div class="row">
+        <span class="control-icon">🔔</span>
+        <div class="grow"><b>Notifications</b><div class="small muted">${esc(pushNow.text)}</div></div>
+        ${toggle('toggle-push', prefs.push, 'aria-label="Notifications"', pushNow.disabled && !prefs.push)}
+      </div>
+    </div>`;
 }
 
 function hereCard(c) {
@@ -360,7 +396,14 @@ function meScreen() {
     </button>
     <div class="list-title">At the park</div>
     <div class="list">
-      <div class="row"><div class="grow">Friend arrival alerts</div>${toggle('toggle-pref', prefs.alerts, 'data-pref="alerts"')}</div>
+      <div class="row">
+        <div class="grow">Friend arrival pop-ups<div class="small muted">The banner at the top while Park Hoppers is open</div></div>
+        ${toggle('toggle-pref', prefs.alerts, 'data-pref="alerts"')}
+      </div>
+      <div class="row">
+        <div class="grow">Phone notifications<div class="small muted">${esc(pushInfo().text)}</div></div>
+        ${toggle('toggle-push', prefs.push, '', pushInfo().disabled && !prefs.push)}
+      </div>
       <div class="row">
         <div class="grow">Auto check-in at my parks<div class="small muted">While Park Hoppers is open, checks you in when you arrive at a park with 🔔 alerts on</div></div>
         ${toggle('toggle-auto', prefs.autoCheckIn)}
@@ -824,6 +867,18 @@ const changes = {
     showBanner(el.checked ? 'Demo Mode is on' : 'Demo Mode is off',
       el.checked ? 'Tap Demo on the Parks tab to have a made-up friend arrive.' : 'The demo friends are gone.');
   },
+  async 'toggle-push'(el) {
+    const on = el.checked;
+    // Straight into enablePush: phones only ask for permission in direct response to a tap.
+    const ok = await run(() => (on ? store.enablePush() : store.disablePush()));
+    if (!ok) {
+      renderView(); // put the switch back
+      return;
+    }
+    showBanner(on ? 'Notifications are on' : 'Notifications are off', on
+      ? 'You’ll get a notification when friends arrive at your parks, even with the app closed.'
+      : 'You won’t get notifications when friends arrive.');
+  },
   'toggle-auto'(el) {
     store.setPref('autoCheckIn', el.checked);
     if (!el.checked) {
@@ -944,6 +999,7 @@ document.addEventListener('keydown', (e) => {
 // ---------- Start up ----------
 
 renderView(); // splash while we connect
+push.register(); // the background helper that shows notifications while the app is closed
 status = await store.start({ onArrival: announceArrival });
 route = parseHash();
 renderView();

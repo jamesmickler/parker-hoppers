@@ -145,6 +145,29 @@ export async function checkIn(parkId, dogIds) {
   await refresh();
 }
 
+/** Asks the server to notify friends' phones about my check-in (sent once per arrival). */
+export async function notifyArrival() {
+  if (!sb) return;
+  const { error } = await sb.functions.invoke('notify-arrival', { body: {} });
+  if (error) console.warn('Couldn’t send arrival notifications:', error);
+}
+
+/** Saves this phone's notification address and which parks it wants to hear about. */
+export async function savePushDevice(subscription, parkIds) {
+  must(await sb.from('push_subscriptions').upsert({
+    endpoint: subscription.endpoint,
+    user_id: data.me.id,
+    p256dh: subscription.keys.p256dh,
+    auth: subscription.keys.auth,
+    park_ids: parkIds,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'endpoint' }));
+}
+
+export async function removePushDevice(endpoint) {
+  must(await sb.from('push_subscriptions').delete().eq('endpoint', endpoint));
+}
+
 export async function checkOut() {
   must(await sb.from('check_ins').delete().eq('user_id', data.me.id));
   await refresh();

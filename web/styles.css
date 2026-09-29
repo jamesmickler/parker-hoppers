@@ -138,6 +138,12 @@ h1.title { font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 
 .chev { color: var(--muted); opacity: 0.5; display: grid; }
 .chev svg { width: 16px; height: 16px; }
 
+/* The two switches at the top of Parks. */
+.controls { margin-bottom: 14px; }
+.controls .row { align-items: flex-start; }
+.controls .row .switch { margin-top: 2px; }
+.control-icon { font-size: 22px; width: 28px; text-align: center; flex: none; line-height: 1.3; }
+
 .here-card {
   display: flex; align-items: center; gap: 12px;
   background: var(--accent-soft);

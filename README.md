@@ -12,6 +12,7 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
 - **Parks:** a map and list of dog parks with how many pups are there, and which friends. With Demo Mode on, a **🔔 Demo** button makes a made-up friend arrive.
 - **Check in:** open a park, tap **We're here!** and pick which dogs came along. Everyone with Hazel Parker or Cannon Park alerts on gets a "just arrived!" notice within a second or two.
 - **Auto check-in:** turn it on under **Me**. While the app is open, it checks you in after about 45 seconds inside a park you have 🔔 alerts on for, and out again 2 minutes after you leave, with an **Undo** button every time. Each park has its own zone; The Jasper's is 20 m and only trusts precise outdoor GPS, so being inside the building doesn't count. On a park's page, **Demo: pretend I just walked in** shows it off in a classroom.
+- **Notifications:** flip the switch at the top of Parks to get a phone notification when a friend arrives at one of your parks, even with the app closed. On iPhone, add Park Hoppers to your Home Screen first.
 - **Find my park:** the 📍 button uses your location to find the nearest dog park.
 - **Moments:** share a photo from the park, like posts, and report or hide posts.
 - **Plus:** the premium tier, with a home-screen widget preview.
@@ -25,6 +26,7 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
   - `cloud.js`: [Supabase](https://supabase.com) for name-only sign-in, shared data, photo storage and live updates
   - `store.js`: blends real people from Supabase with the demo pack; every change the app can make
   - `app.js`: screens and interactions
+- `supabase/functions/notify-arrival`: sends the "just arrived!" phone notifications (Web Push).
 - `supabase/migrations/`: the database tables and access rules. Anyone signed in can see the community; people can only change their own data. Apply with `supabase db push`.
 - `ios/`: the native iPhone app in SwiftUI. It uses the same Supabase data as the website, so web and iPhone users see each other live, and it adds automatic check-in that works with your phone in your pocket: iOS wakes the app near one of your parks, then precise GPS confirms you're inside the park's own zone. It has no third-party libraries; `ios/ParkerHoppers/Supabase/` is a small built-in Supabase client.
 - Every push to `main` publishes `web/` to GitHub Pages through `.github/workflows/pages.yml`.

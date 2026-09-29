@@ -11,6 +11,8 @@ struct ParksView: View {
         NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    ControlsCard()
+
                     if let mine = state.myCheckIn, let park = Park.find(mine.parkID) {
                         HereCard(checkIn: mine, park: park)
                     }
@@ -90,6 +92,40 @@ struct ParksView: View {
         }
         let ranked = Park.all.map { ($0, here.distance(from: $0.location)) }.sorted { $0.1 < $1.1 }
         if let first = ranked.first { nearby = (first.0, first.1) }
+    }
+}
+
+/// The switches at the top of Parks: location tracking (auto check-in) and arrival alerts.
+private struct ControlsCard: View {
+    @Environment(AppState.self) private var state
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Toggle(isOn: Binding(get: { state.prefs.autoCheckIn }, set: { state.setAutoCheckIn($0) })) {
+                row("📍", "Auto check-in", state.prefs.autoCheckIn
+                    ? "On · uses your location to check you in at your parks, even with the app closed"
+                    : "Off · your location isn’t used. Turn on to check in automatically at your parks")
+            }
+            .padding()
+            Divider().padding(.leading, 56)
+            Toggle(isOn: Binding(get: { state.prefs.alertsEnabled }, set: { on in state.updatePrefs { $0.alertsEnabled = on } })) {
+                row("🔔", "Arrival alerts", state.prefs.alertsEnabled
+                    ? "On · a pop-up when friends arrive at your parks"
+                    : "Off · no pop-ups when friends arrive")
+            }
+            .padding()
+        }
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    private func row(_ emoji: String, _ title: String, _ detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Text(emoji).font(.title3).frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+        }
     }
 }
 

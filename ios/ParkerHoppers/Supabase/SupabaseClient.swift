@@ -107,6 +107,13 @@ final class SupabaseClient {
         _ = try await request("DELETE", "rest/v1/\(table)?\(filter)")
     }
 
+    // MARK: Server functions
+
+    /// Runs one of the project's Edge Functions (e.g. "notify-arrival") as the signed-in person.
+    func invokeFunction(_ name: String) async throws {
+        _ = try await request("POST", "functions/v1/\(name)", json: [String: String]())
+    }
+
     // MARK: Photos
 
     /// Uploads a JPEG into the signed-in person's folder and returns its public link.

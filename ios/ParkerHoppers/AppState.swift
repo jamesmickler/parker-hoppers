@@ -263,6 +263,7 @@ final class AppState {
     func checkIn(park: Park, dogIDs: [String], auto: Bool = false) async throws {
         guard let myID else { return }
         try await Cloud.checkIn(myID: myID, parkID: park.id, dogIDs: dogIDs)
+        Task { await Cloud.notifyArrival() } // friends' phones hear about it, even with their app closed
         updatePrefs { $0.autoParkID = auto ? park.id : nil }
         await refresh()
     }
@@ -286,6 +287,12 @@ final class AppState {
 
     func resetDemoPack() {
         demoCheckIns = []
+    }
+
+    /// The Auto check-in switch (on the Parks screen and the Me tab).
+    func setAutoCheckIn(_ on: Bool) {
+        updatePrefs { $0.autoCheckIn = on }
+        if on { autoCheckIn.enable() } else { autoCheckIn.disable() }
     }
 
     /// Demo Mode on shows the demo pack and its button; off hides them and sends the pack home.

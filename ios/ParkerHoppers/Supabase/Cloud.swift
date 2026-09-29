@@ -83,6 +83,15 @@ enum Cloud {
         try await db.insert("check_ins", ["user_id": myID, "park_id": parkID, "dog_ids": dogIDs], onConflict: "user_id")
     }
 
+    /// Asks the server to send friends' phones a "just arrived!" notification (once per arrival).
+    static func notifyArrival() async {
+        do {
+            try await db.invokeFunction("notify-arrival")
+        } catch {
+            print("Couldn't send arrival notifications:", error)
+        }
+    }
+
     static func checkOut(myID: String) async throws {
         try await db.delete("check_ins", "user_id=eq.\(myID)")
     }

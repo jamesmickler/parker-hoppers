@@ -9,6 +9,7 @@ import {
   parks, parkById, dogs as seedDogs, people as seedPeople, MY_ID, FRIEND_IDS, DEFAULT_ALERT_PARKS,
 } from './data.js';
 import * as cloud from './cloud.js';
+import * as push from './push.js';
 
 const KEY = 'parker-hoppers-demo-v1';
 const CHECKOUT_AFTER = 90 * 60_000;
@@ -30,7 +31,8 @@ function fresh() {
     hiddenAuthorIds: [],
     autoParkId: null, // the park you were checked into automatically, if any
     // demoMode shows the demo pack and the "a friend arrives" button, for presentations.
-    prefs: { alerts: true, plus: false, guest: false, autoCheckIn: false, demoMode: false },
+    // push: this phone gets notifications when friends arrive, even with the app closed.
+    prefs: { alerts: true, plus: false, guest: false, autoCheckIn: false, demoMode: false, push: false },
   };
 }
 
@@ -46,6 +48,7 @@ function load() {
   s.autoParkId ??= null;
   s.prefs.autoCheckIn ??= false;
   s.prefs.demoMode ??= false;
+  s.prefs.push ??= false;
   // Version 2: the demo pack no longer starts out at the parks or with posts, and Horse Lot and
   // The Jasper joined "Your parks". Clean that out of browsers that saved the old version.
   if ((s.version ?? 1) < 2) {
@@ -96,9 +99,51 @@ export async function start({ onArrival }) {
   const { available, signedIn } = await cloud.connect();
   if (!available) return 'offline';
   online = signedIn;
-  if (online) listen();
+  if (online) {
+    listen();
+    syncPush();
+  }
   return online ? 'online' : 'needs-join';
 }
+
+/**
+ * Keeps the server's copy of this phone's notification sign-up current: the phone may have
+ * turned notifications off in its settings, or replaced its address, since last time.
+ */
+async function syncPush() {
+  try {
+    const subscription = await push.current();
+    if (!subscription) {
+      if (state.prefs.push) setPref('push', false);
+      return;
+    }
+    await cloud.savePushDevice(subscription.toJSON(), state.alertParkIds);
+    if (!state.prefs.push) setPref('push', true);
+  } catch (error) {
+    console.warn('Couldn’t sync notifications:', error);
+  }
+}
+
+/** Turns phone notifications on. Call it straight from a tap (phones require that). */
+export async function enablePush() {
+  if (!online) throw new Error('Join Park Hoppers first to get notifications.');
+  const subscription = await push.subscribe();
+  await cloud.savePushDevice(subscription, state.alertParkIds);
+  setPref('push', true);
+}
+
+export async function disablePush() {
+  const endpoint = await push.unsubscribe();
+  if (endpoint && online) await cloud.removePushDevice(endpoint);
+  setPref('push', false);
+}
+
+export const pushStatus = () => ({
+  on: state.prefs.push,
+  supported: push.supported(),
+  needsHomeScreen: push.needsHomeScreen(),
+  blocked: push.blocked(),
+});
 
 // Live updates start once signed in, so the database knows who's listening.
 function listen() {
@@ -129,9 +174,13 @@ export function lookAround() {
 }
 
 export async function leave() {
+  // Deleting the profile removes this phone's notification sign-up on the server too;
+  // also switch it off on the phone itself.
+  await push.unsubscribe().catch(() => {});
   await cloud.leave();
   online = false;
   state.prefs.guest = false;
+  state.prefs.push = false;
   commit();
 }
 
@@ -219,6 +268,7 @@ const pick = (list) => list[Math.floor(Math.random() * list.length)];
 export async function checkIn(parkId, dogIds, { auto = false } = {}) {
   if (online) {
     await cloud.checkIn(parkId, dogIds);
+    cloud.notifyArrival(); // friends' phones hear about it, even with the app closed
   } else {
     state.checkIns = state.checkIns.filter((c) => c.personId !== state.myId);
     state.checkIns.push({ id: uid(), personId: state.myId, dogIds, parkId, arrivedAt: Date.now() });
@@ -254,6 +304,8 @@ export function toggleAlerts(parkId) {
     ? state.alertParkIds.filter((id) => id !== parkId)
     : [...state.alertParkIds, parkId];
   commit();
+  // Notifications follow "Your parks", so tell the server which parks this phone wants.
+  if (online && state.prefs.push) syncPush();
 }
 
 export function setPref(key, value) {

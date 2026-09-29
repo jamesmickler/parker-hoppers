@@ -48,10 +48,7 @@ struct MeView: View {
                     ))
                     Toggle(isOn: Binding(
                         get: { state.prefs.autoCheckIn },
-                        set: { value in
-                            state.updatePrefs { $0.autoCheckIn = value }
-                            if value { state.autoCheckIn.enable() } else { state.autoCheckIn.disable() }
-                        }
+                        set: { state.setAutoCheckIn($0) }
                     )) {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Auto check-in at my parks")
