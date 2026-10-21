@@ -418,6 +418,16 @@ export function pendingInvite() {
   }
 }
 
+/** The invite code typed on the join screen, used right after joining. Empty clears it. */
+export function rememberInvite(code) {
+  try {
+    if (code) localStorage.setItem(INVITE_KEY, code);
+    else localStorage.removeItem(INVITE_KEY);
+  } catch {
+    // Storage blocked: the code can still be typed in on the Friends tab.
+  }
+}
+
 function clearPendingInvite() {
   try {
     localStorage.removeItem(INVITE_KEY);

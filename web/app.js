@@ -68,6 +68,9 @@ function dogDetails(dog) {
   return [SIZES[dog?.size]?.label, COMFORT[dog?.comfort]].filter(Boolean).join(' · ');
 }
 
+/** "K7P29QXM" → "K7P2-9QXM", easier to read out loud. */
+const prettyCode = (code) => (/^[A-Z0-9]{8}$/i.test(code) ? `${code.slice(0, 4)}-${code.slice(4)}`.toUpperCase() : code);
+
 /** The breed, unless it's the "Good dog" filler used when none was given. */
 const breedOf = (dog) => (dog.breed === 'Good dog' ? '' : dog.breed);
 
@@ -491,6 +494,8 @@ function joinScreen() {
       <h1>Park Hoppers</h1>
       <p class="muted">See when your friends’ dogs are at the park, so you can meet up.</p>
       <p class="invite-note" id="invite-note" hidden></p>
+      ${push.needsHomeScreen() ? `
+        <p class="home-tip small">📲 On iPhone, Park Hoppers works best from your Home Screen: tap <b>Share</b> → <b>Add to Home Screen</b>, then join from the new icon. ${store.pendingInvite() ? 'Bring your invite code below with you.' : ''}</p>` : ''}
       <form data-submit="join" class="stack">
         ${dogPhotoPicker()}
         <input class="field" name="name" placeholder="Your first name" required maxlength="40" autocomplete="given-name">
@@ -499,6 +504,9 @@ function joinScreen() {
         ${dogDetailsFields()}
         <div class="list-title flush">Badge color</div>
         ${swatchPicker()}
+        <div class="list-title flush">Invite code from a friend (optional)</div>
+        <input class="field code-field" name="invite" placeholder="e.g. K7P2-9QXM" maxlength="12" autocomplete="off" autocapitalize="characters"
+          value="${esc(prettyCode(store.pendingInvite() ?? ''))}">
         <button class="btn btn-primary" type="submit">${icon.paw} Join the pack</button>
       </form>
       <button class="link-btn look-around" data-action="look-around">Just look around first</button>
@@ -630,13 +638,15 @@ const sheets = {
       <p class="sheet-sub">Only friends see your name, your dogs and where you check in.</p>
       ${made ? `
         <div class="card center invite-card">
-          <div class="small muted">Invite code</div>
-          <div class="invite-code">${made.code.slice(0, 4)}-${made.code.slice(4)}</div>
+          <div class="qr-tile" id="invite-qr" role="img" aria-label="QR code for your invite link"></div>
+          <div class="small muted">Have your friend point their phone’s camera here, or give them this code:</div>
+          <div class="invite-code">${prettyCode(made.code)}</div>
           <div class="small muted">Works once, for 7 days. Only share it with people you know.</div>
         </div>
         <div class="stack spaced">
           <button class="btn btn-primary" data-action="share-invite">Share invite</button>
           <button class="btn btn-plain" data-action="copy-invite">Copy link</button>
+          <button class="link-btn" data-action="make-invite">Used it? Make another invite</button>
         </div>`
       : `<button class="btn btn-primary spaced" data-action="make-invite">${icon.invite} Make an invite</button>`}
       <div class="list-title">Got a code from a friend?</div>
@@ -833,6 +843,23 @@ store.subscribe(renderView);
 
 // ---------- What taps do ----------
 
+const QR_LIBRARY = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/+esm';
+
+/** Draws the invite link as a QR code in the invite sheet. The library loads the first time. */
+async function drawInviteQr(link) {
+  const box = document.getElementById('invite-qr');
+  try {
+    const { default: qrcode } = await import(QR_LIBRARY);
+    const qr = qrcode(0, 'M');
+    qr.addData(link);
+    qr.make();
+    box.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true });
+  } catch (error) {
+    console.warn('Couldn’t draw the QR code:', error);
+    box.hidden = true; // the code and the Share button still work
+  }
+}
+
 async function showInvitePreview() {
   const code = store.pendingInvite();
   if (!code) return;
@@ -936,7 +963,10 @@ const actions = {
   },
   async 'make-invite'() {
     let made;
-    if (await run(async () => { made = await store.createInvite(); })) openSheet({ type: 'invite', invite: made });
+    if (await run(async () => { made = await store.createInvite(); })) {
+      openSheet({ type: 'invite', invite: made });
+      drawInviteQr(made.link);
+    }
   },
   async 'share-invite'() {
     const { code, link } = sheet.invite;
@@ -1084,6 +1114,7 @@ const submits = {
       name: dogName, breed: data.get('breed').trim() || 'Good dog', color: data.get('color') || '#5B8DEF', photo: draftPhoto,
       size: data.get('size') || null, comfort: data.get('comfort') || null,
     };
+    store.rememberInvite(data.get('invite').trim());
     if (!(await submitting(form, () => store.join(name, dog)))) return;
     draftPhoto = null;
     status = 'online';

@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreImage.CIFilterBuiltins
 
 struct FriendsView: View {
     @Environment(AppState.self) private var state
@@ -150,7 +151,21 @@ struct InviteSheet: View {
                 Section {
                     if let invite {
                         VStack(spacing: 6) {
-                            Text("Invite code").font(.subheadline).foregroundStyle(.secondary)
+                            if let qr = Self.qrCode(for: invite.link) {
+                                // Always dark-on-white, even in dark mode, so any camera can read it.
+                                Image(uiImage: qr)
+                                    .interpolation(.none)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 180, height: 180)
+                                    .padding(12)
+                                    .background(.white, in: RoundedRectangle(cornerRadius: 16))
+                                    .accessibilityLabel("QR code for your invite link")
+                            }
+                            Text("Have your friend point their phone’s camera here, or give them this code:")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
                             Text(Self.pretty(invite.code))
                                 .font(.system(size: 34, weight: .heavy, design: .rounded))
                                 .tracking(2)
@@ -172,6 +187,12 @@ struct InviteSheet: View {
                         } label: {
                             Label(copied ? "Link copied" : "Copy link", systemImage: copied ? "checkmark" : "doc.on.doc")
                         }
+                        Button {
+                            Task { await make() }
+                        } label: {
+                            Label(making ? "Making…" : "Used it? Make another invite", systemImage: "arrow.clockwise")
+                        }
+                        .disabled(making)
                     } else {
                         Button {
                             Task { await make() }
@@ -211,6 +232,16 @@ struct InviteSheet: View {
         .presentationDetents([.medium, .large])
     }
 
+    /// The invite link as a QR code, drawn sharp enough to scan from across a table.
+    static func qrCode(for link: URL) -> UIImage? {
+        let filter = CIFilter.qrCodeGenerator()
+        filter.message = Data(link.absoluteString.utf8)
+        filter.correctionLevel = "M"
+        guard let output = filter.outputImage?.transformed(by: CGAffineTransform(scaleX: 10, y: 10)),
+              let image = CIContext().createCGImage(output, from: output.extent) else { return nil }
+        return UIImage(cgImage: image)
+    }
+
     /// "K7P29QXM" → "K7P2-9QXM", easier to read out loud.
     static func pretty(_ code: String) -> String {
         "\(code.prefix(4))-\(code.dropFirst(4))"
@@ -221,6 +252,7 @@ struct InviteSheet: View {
         defer { making = false }
         do {
             invite = try await state.createInvite()
+            copied = false
             problem = nil
         } catch {
             problem = state.friendly(error)
