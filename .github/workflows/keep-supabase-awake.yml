@@ -1,0 +1,44 @@
+# Free Supabase projects pause after a week without activity, which takes the app's real
+# people, check-ins and photos offline. This runs a small database query every two days so
+# that never happens. If Supabase is already paused or down, the run fails and GitHub emails
+# the repo owner, so a pause doesn't go unnoticed.
+name: Keep Supabase awake
+
+on:
+  schedule:
+    - cron: "17 14 */2 * *" # every other day, around 10 AM in Charleston
+  workflow_dispatch: # also runnable by hand from the Actions tab
+
+permissions:
+  contents: read
+  actions: write # for the last step
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run a database query
+        run: |
+          # The same public address and publishable key the website uses (web/config.js).
+          URL=$(sed -n "s/.*SUPABASE_URL = '\(.*\)'.*/\1/p" web/config.js)
+          KEY=$(sed -n "s/.*SUPABASE_KEY = '\(.*\)'.*/\1/p" web/config.js)
+          # invite_preview is open to everyone and reads the database (an unknown code just
+          # returns nothing), so it counts as real activity without changing any data.
+          status=$(curl -s -o response.txt -w "%{http_code}" --max-time 60 \
+            -X POST "$URL/rest/v1/rpc/invite_preview" \
+            -H "apikey: $KEY" -H "Content-Type: application/json" \
+            -d '{"invite_code":"KEEPAWAKE"}')
+          echo "Supabase answered HTTP $status: $(cat response.txt)"
+          if [ "$status" != "200" ]; then
+            echo "::error::Supabase didn't answer. It may be paused: open https://supabase.com/dashboard/project/dndbyhphjvumqkjtuncn and click Restore."
+            exit 1
+          fi
+
+      - name: Keep this schedule switched on
+        # GitHub turns off scheduled workflows in public repos after 60 days without commits.
+        # Re-enabling the workflow resets that clock.
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/keep-supabase-awake.yml/enable"
