@@ -17,7 +17,7 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
 - **Notifications:** flip the switch at the top of Parks to get a phone notification when a friend arrives at one of your parks, even with the app closed. On iPhone, add Park Hoppers to your Home Screen first.
 - **Find my park:** the 📍 button uses your location to find the nearest dog park.
 - **Moments:** share a photo from the park, like posts, and report or hide posts.
-- **Plus:** the premium tier, with a home-screen widget preview.
+- **Perks:** how Park Hoppers would make money. Each park's page shows offers from dog businesses nearby, and **Me → Perks** adds shopping picks matched to each dog's size and comfort with other dogs (links to Chewy). The local partners are clearly labeled samples. Partners never see who you are, your friends or your check-ins. **Me → Perks → Partner with Park Hoppers** is the pitch to businesses.
 
 - **Same account on another phone, a laptop or the Home Screen:** on iPhone, the Home Screen version keeps its own storage, apart from Safari, so joining in Safari doesn't carry over. Park Hoppers shows a **Put Park Hoppers on your Home Screen** card with a one-time sign-in code, and the Home Screen version asks **Already joined in Safari?** Anywhere else, **Me → Use on another phone or computer** shows a code and a QR code. Codes work once, for 30 minutes.
 

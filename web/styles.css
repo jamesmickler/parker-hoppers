@@ -300,12 +300,19 @@ h1.title { font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 
 
 /* ---------- Me ---------- */
 
-.plus-card {
+.perks-card {
   display: flex; align-items: center; gap: 12px;
   width: 100%; border: 0; text-align: left;
   margin-top: 26px;
 }
-.plus-icon { width: 44px; height: 44px; border-radius: 10px; }
+.perks-icon { width: 44px; height: 44px; border-radius: 10px; display: grid; place-items: center; font-size: 26px; background: var(--accent-soft); }
+.perk-emoji { width: 36px; font-size: 24px; text-align: center; flex: none; }
+.perk-hero { text-align: center; }
+.perk-big { font-size: 52px; display: block; }
+.perk-hero h2 { margin: 6px 0 2px; font-size: 24px; }
+.perk-hero p { margin: 0 0 14px; }
+.perk-detail { margin: 16px 0 4px; line-height: 1.45; }
+.privacy-note { font-size: 13px; color: var(--muted); background: var(--card); border-radius: 12px; padding: 10px 14px; margin: 18px 0 0; line-height: 1.45; box-shadow: var(--shadow); }
 
 .demo-tag {
   font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
@@ -505,21 +512,6 @@ select.field { appearance: none; -webkit-appearance: none; color: var(--text);
 .swatch span { display: block; width: 30px; height: 30px; border-radius: 50%; background: var(--c); }
 .swatch input:checked + span { box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--c); }
 
-.plus-hero { text-align: center; }
-.plus-hero img { width: 72px; height: 72px; border-radius: 16px; }
-.plus-hero h2 { margin: 10px 0 2px; font-size: 26px; }
-.plus-hero p { margin: 0 0 18px; }
-.widget {
-  width: 170px; height: 170px;
-  margin: 0 auto 8px;
-  padding: 14px;
-  border-radius: 26px;
-  background: var(--card);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  display: flex; flex-direction: column; gap: 6px;
-}
-.widget-top { font-size: 11px; font-weight: 700; color: var(--accent); }
-.widget b { font-size: 15px; line-height: 1.2; }
 .features { margin: 22px 0; }
 .feature { display: flex; gap: 14px; align-items: flex-start; }
 .feature .emoji { font-size: 26px; width: 34px; text-align: center; flex: none; }

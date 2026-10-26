@@ -32,7 +32,7 @@ function fresh() {
     autoParkId: null, // the park you were checked into automatically, if any
     // demoMode shows the demo pack and the "a friend arrives" button, for presentations.
     // push: this phone gets notifications when friends arrive, even with the app closed.
-    prefs: { alerts: true, plus: false, guest: false, autoCheckIn: false, demoMode: false, push: false },
+    prefs: { alerts: true, guest: false, autoCheckIn: false, demoMode: false, push: false },
   };
 }
 

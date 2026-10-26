@@ -90,6 +90,61 @@ export const COMFORT = {
   needs_space: 'Needs space from other dogs',
 };
 
+// ---------- Perks ----------
+// How Park Hoppers makes money: local dog businesses near each park pay for a spot on that
+// park's page, and shopping picks matched to your dog could earn a small commission.
+// These partners are SAMPLES for the prototype: made-up businesses with made-up offers.
+// Partners never see who you are, your friends or your check-ins.
+
+export const PARTNERS = [
+  { id: 'harbor-hound', name: 'Harbor Hound Grooming', kind: 'Grooming', emoji: '🛁',
+    offer: '10% off a bath', detail: 'Bath, brush and nail trim. Walk-ins welcome after park time.',
+    code: 'HOPBATH10', parks: ['hazel-parker', 'white-point'], walk: '4 min walk' },
+  { id: 'pup-and-pour', name: 'Pup & Pour Coffee', kind: 'Dog-friendly café', emoji: '☕️',
+    offer: 'Free pup cup with any drink', detail: 'A little cup of whipped cream for your dog. Patio seating, water bowls out front.',
+    code: 'HOPCUP', parks: ['cannon-park', 'horse-lot', 'the-jasper'], walk: '3 min walk' },
+  { id: 'village-bark', name: 'Village Bark Supply', kind: 'Pet store', emoji: '🦴',
+    offer: '15% off treats and toys', detail: 'Local pet shop with treats, toys and leashes. Free water refills.',
+    code: 'HOPTREATS15', parks: ['cannon-park', 'horse-lot', 'the-jasper', 'brittlebank'], walk: '6 min walk' },
+  { id: 'westside-daycare', name: 'Westside Dog Daycare', kind: 'Daycare', emoji: '🏡',
+    offer: 'First day of daycare free', detail: 'Supervised playgroups sorted by size and temperament.',
+    code: 'HOPDAY1', parks: ['brittlebank', 'ackerman'], walk: '5 min drive' },
+  { id: 'live-oak-vet', name: 'Live Oak Animal Clinic', kind: 'Vet', emoji: '🩺',
+    offer: 'Free nail trim with a checkup', detail: 'Checkups, vaccines and a friendly front desk.',
+    code: 'HOPVET', parks: ['ackerman', 'james-island', 'white-point'], walk: '7 min drive' },
+];
+
+export const partnersNear = (parkId) => PARTNERS.filter((p) => p.parks.includes(parkId));
+
+const chewySearch = (query) => `https://www.chewy.com/s?query=${encodeURIComponent(query)}`;
+
+/** Up to three shopping picks for a dog, based on its size and how it does with other dogs. */
+export function picksFor(dog) {
+  const name = dog.name;
+  const picks = [];
+  if (dog.size === 'large') {
+    picks.push({ emoji: '🦴', title: 'Tough chew toys', why: `${name} is a big dog`,
+      url: 'https://www.chewy.com/f/tough-chewer-dog-chew-toys_c316_f58v382923' });
+  } else if (dog.size === 'small') {
+    picks.push({ emoji: '🧸', title: 'Toys for small dogs', why: `Sized for ${name}`,
+      url: 'https://www.chewy.com/f/small-dog-toys_c315_f6v13790' });
+  } else {
+    picks.push({ emoji: '🎾', title: 'Fetch toys', why: 'For open fields like the off-leash areas',
+      url: chewySearch('dog fetch toys') });
+  }
+  if (dog.comfort === 'shy' || dog.comfort === 'needs_space') {
+    picks.push({ emoji: '💛', title: 'Yellow “I need space” leash', why: 'A sign other owners recognize',
+      url: chewySearch('yellow dog leash give me space') });
+    picks.push({ emoji: '🌿', title: 'Calming treats', why: 'For busy park days',
+      url: chewySearch('calming treats for dogs') });
+  } else if (dog.comfort === 'loves_all') {
+    picks.push({ emoji: '🥏', title: 'Flying discs', why: `${name} loves a crowd`, url: chewySearch('dog frisbee') });
+  }
+  picks.push({ emoji: '💧', title: 'Collapsible water bowl', why: 'For long park days',
+    url: 'https://www.chewy.com/f/travel-dog-bowls-dishes_c1422_f86v69996' });
+  return picks.slice(0, 3);
+}
+
 export const MY_ID = 'me';
 
 export const people = {
