@@ -1,8 +1,39 @@
-// Park Hoppers' background helper (service worker): shows "just arrived!" notifications
-// even when the app is closed, and opens the right park when one is tapped.
+// Park Hoppers' background helper (service worker): keeps a copy of the app on the phone so
+// it opens instantly, shows "just arrived!" notifications even when the app is closed, and
+// opens the right park when one is tapped.
 
-self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
+// Filled in by .github/workflows/pages.yml on every publish: the version, and every file in
+// web/. A new version makes phones save the new files and use them from the next open.
+// Left as-is (local preview), nothing is saved and everything comes from the network.
+const VERSION = '__BUILD__';
+const FILES = [/*FILES*/];
+const CACHE = `park-hoppers-${VERSION}`;
+const deployed = !VERSION.startsWith('__');
+
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  if (deployed) event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', ...FILES])));
+});
+
+self.addEventListener('activate', (event) => event.waitUntil((async () => {
+  // Throw away copies of older versions.
+  for (const name of await caches.keys()) {
+    if (name !== CACHE) await caches.delete(name);
+  }
+  await self.clients.claim();
+})()));
+
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  // Supabase, map tiles and anything else on other sites always go straight to the network.
+  if (!deployed || event.request.method !== 'GET' || url.origin !== self.location.origin) return;
+  event.respondWith((async () => {
+    const cache = await caches.open(CACHE);
+    // Any page of the app (…/?invite=CODE included) is the same index.html.
+    const saved = event.request.mode === 'navigate' ? await cache.match('./') : await cache.match(event.request);
+    return saved || fetch(event.request);
+  })());
+});
 
 self.addEventListener('push', (event) => {
   let data = {};

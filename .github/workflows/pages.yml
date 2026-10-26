@@ -23,6 +23,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Stamp this version and its file list into the service worker
+        # web/sw.js keeps a copy of these files on phones so the app opens instantly.
+        run: |
+          files=$(cd web && find . -type f ! -name sw.js ! -name '.*' | sed 's|^\./||' | sort | sed 's/.*/"&"/' | paste -sd, -)
+          sed -i "s|'__BUILD__'|'${GITHUB_SHA::7}'|; s|\[/\*FILES\*/\]|[${files}]|" web/sw.js
+          head -12 web/sw.js | tail -3
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

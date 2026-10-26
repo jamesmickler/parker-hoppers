@@ -19,6 +19,8 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
 - **Moments:** share a photo from the park, like posts, and report or hide posts.
 - **Plus:** the premium tier, with a home-screen widget preview.
 
+- **Same account on another phone, a laptop or the Home Screen:** on iPhone, the Home Screen version keeps its own storage, apart from Safari, so joining in Safari doesn't carry over. Park Hoppers shows a **Put Park Hoppers on your Home Screen** card with a one-time sign-in code, and the Home Screen version asks **Already joined in Safari?** Anywhere else, **Me → Use on another phone or computer** shows a code and a QR code. Codes work once, for 30 minutes.
+
 **Me → Leave Park Hoppers** deletes your name, dogs, check-ins and posts.
 
 ## How it's built
@@ -31,6 +33,9 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
 - `supabase/functions/notify-arrival`: sends the "just arrived!" phone notifications (Web Push).
 - `supabase/migrations/`: the database tables and access rules. People only see themselves and their friends; friendships are created only by using an invite code, and people can only change their own data. Apply with `supabase db push`.
 - `ios/`: the native iPhone app in SwiftUI. It uses the same Supabase data as the website, so web and iPhone users see each other live, and it adds automatic check-in that works with your phone in your pocket: iOS wakes the app near one of your parks, then precise GPS confirms you're inside the park's own zone. It has no third-party libraries; `ios/ParkerHoppers/Supabase/` is a small built-in Supabase client.
+- `web/vendor/`: pinned copies of Leaflet 1.9.4, supabase-js 2.118.0 and qrcode-generator 1.4.4, served from this site so the first screen never waits on another server.
+- `web/sw.js` keeps a copy of the app on the phone, so it opens instantly, even on a bad connection. The publish step stamps each version into it, and phones switch to the new version on their next open.
+- `supabase/functions/sign-in-code`: makes and checks the one-time sign-in codes.
 - Every push to `main` publishes `web/` to GitHub Pages through `.github/workflows/pages.yml`.
 - If Supabase can't be reached, the app falls back to the demo pack so a demo never dead-ends.
 

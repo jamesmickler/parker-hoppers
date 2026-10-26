@@ -11,6 +11,9 @@ let registration = null;
 
 export const supported = () => 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
+/** Running as the app added to the Home Screen (not in a browser tab). */
+export const onHomeScreenApp = () => onHomeScreen;
+
 /** iPhones only allow notifications for web apps added to the Home Screen. */
 export const needsHomeScreen = () => isIPhone && !onHomeScreen;
 

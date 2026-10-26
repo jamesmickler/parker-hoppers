@@ -394,17 +394,26 @@ export async function updateDog(id, fields) {
 
 const INVITE_KEY = 'parker-hoppers-invite';
 
-/** An invite link (…/?invite=CODE) is remembered until the person has joined and used it. */
+let linkSignInCode = null;
+
+/**
+ * An invite link (…/?invite=CODE) is remembered until the person has joined and used it.
+ * A sign-in link (…/?signin=CODE) is used at startup if this device isn't signed in yet.
+ */
 function readInviteFromLink() {
   const params = new URLSearchParams(location.search);
   const code = params.get('invite');
-  if (!code) return;
-  try {
-    localStorage.setItem(INVITE_KEY, code);
-  } catch {
-    // Storage blocked: the code can still be typed in on the Friends tab.
+  linkSignInCode = params.get('signin');
+  if (!code && !linkSignInCode) return;
+  if (code) {
+    try {
+      localStorage.setItem(INVITE_KEY, code);
+    } catch {
+      // Storage blocked: the code can still be typed in on the Friends tab.
+    }
   }
   params.delete('invite');
+  params.delete('signin');
   const rest = params.toString();
   history.replaceState(null, '', location.pathname + (rest ? `?${rest}` : '') + location.hash);
 }
@@ -464,6 +473,30 @@ export async function acceptPendingInvite() {
     if (!/fetch|network|timed out/i.test(String(error?.message))) clearPendingInvite();
     throw error;
   }
+}
+
+// ---------- Sign-in codes ----------
+// Use the same account on another phone, a laptop or the iPhone Home Screen app.
+
+/** The code from a sign-in link this page was opened with, if any. */
+export const linkSignIn = () => linkSignInCode;
+
+/** A one-time code (and link) that signs another device in as me, for 30 minutes. */
+export async function createSignInCode() {
+  const code = await cloud.createSignInCode();
+  return { code, link: `${location.origin}${location.pathname}?signin=${code}` };
+}
+
+/** Signs this device in with a code from another one. Resolves the person's name. */
+export async function signInWithCode(code) {
+  linkSignInCode = null;
+  const name = await cloud.signInWithCode(code);
+  online = true;
+  state.prefs.guest = false;
+  listen();
+  syncPush();
+  commit();
+  return name;
 }
 
 export async function removeFriend(friendId) {

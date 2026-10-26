@@ -9,20 +9,44 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="Park Hoppers">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
   <link rel="icon" href="icons/icon-192.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <!-- Just enough styling to show the logo the instant the page opens, before anything else
+       loads, so a slow connection never looks like a black, broken screen. -->
+  <style>
+    body { margin: 0; background: #F2F2F7; font-family: -apple-system, system-ui, sans-serif; }
+    @media (prefers-color-scheme: dark) { body { background: #000; color: #F2F2F7; } }
+    .boot { min-height: 80vh; display: grid; place-items: center; text-align: center; padding: 24px; }
+    .boot img { width: 84px; height: 84px; border-radius: 20px; }
+    .boot p { color: #8E8E93; font-size: 15px; }
+    .boot button { font: inherit; font-weight: 600; color: #fff; background: #F2762E; border: 0; border-radius: 14px; padding: 12px 22px; }
+  </style>
+  <!-- Libraries are kept in vendor/ on this site (pinned versions), not loaded from another
+       server, so the first screen doesn't wait on one. -->
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="styles.css">
-  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <script src="vendor/leaflet/leaflet.js" defer></script>
+  <script src="vendor/supabase.js" defer></script>
   <script type="module" src="app.js"></script>
 </head>
 <body>
   <div class="app">
-    <main id="view"></main>
+    <main id="view"><div class="boot"><img src="icons/icon-192.png" alt="Park Hoppers"></div></main>
     <nav id="tabs" class="tabs" aria-label="Sections"></nav>
   </div>
   <div id="banner" class="banner" role="status" hidden></div>
   <div id="sheet-root"></div>
+  <script>
+    // If the app hasn't started after 20 seconds (very slow or no connection), say so and
+    // offer a reload rather than leaving a blank screen.
+    setTimeout(() => {
+      if (window.parkHoppersStarted) return;
+      document.getElementById('view').innerHTML = '<div class="boot"><div><img src="icons/icon-192.png" alt="">'
+        + '<p>Park Hoppers is taking a while to load.<br>Check your internet connection.</p>'
+        + '<button onclick="location.reload()">Try again</button></div></div>';
+    }, 20000);
+  </script>
 </body>
 </html>

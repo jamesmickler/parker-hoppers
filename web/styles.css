@@ -456,7 +456,10 @@ select.field { appearance: none; -webkit-appearance: none; color: var(--text);
 /* Always dark-on-white, even in dark mode, so any camera can read it. */
 .qr-tile { width: 200px; margin: 4px auto 6px; padding: 12px; background: #fff; border-radius: 16px; box-shadow: 0 0 0 1px var(--line); }
 .qr-tile svg { display: block; width: 100%; height: auto; }
-.home-tip { background: var(--card); border-radius: 12px; padding: 10px 14px; margin: 0 0 16px; box-shadow: var(--shadow); text-align: left; }
+.home-card { display: flex; align-items: center; gap: 12px; width: 100%; border: 0; text-align: left; margin-bottom: 12px; font: inherit; }
+.home-card .emoji { font-size: 28px; }
+.join .home-card { margin: 0 0 4px; }
+.steps { margin: 12px 0 0; padding-left: 22px; display: grid; gap: 10px; line-height: 1.4; }
 .code-form .field::placeholder { text-transform: none; letter-spacing: 0; }
 
 /* Who's at the park: sizes and heads-ups */

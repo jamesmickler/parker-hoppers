@@ -4,7 +4,6 @@
 
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
-const LIBRARY = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 const CHECKIN_WINDOW = 90 * 60_000;
 
 let sb = null;
@@ -18,13 +17,12 @@ export const data = {
   reported: new Set(),
 };
 
-const timeout = (ms) => new Promise((_, reject) => setTimeout(() => reject(new Error('timed out')), ms));
-
 /** Loads Supabase and restores a previous sign-in. Resolves { available, signedIn }. */
 export async function connect() {
   try {
-    const { createClient } = await Promise.race([import(LIBRARY), timeout(8000)]);
-    sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+    // supabase-js is loaded by index.html from vendor/supabase.js (version 2.118.0).
+    if (!window.supabase?.createClient) throw new Error('Supabase library didn’t load');
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
       await refresh(session.user.id);
@@ -172,6 +170,37 @@ export async function invitePreview(code) {
   if (!sb) return null;
   const { data: name } = await sb.rpc('invite_preview', { invite_code: code });
   return name ?? null;
+}
+
+// ---------- Sign-in codes ----------
+// The same person on another phone, a laptop, or the iPhone Home Screen app (which keeps its
+// own storage, apart from Safari's). See supabase/functions/sign-in-code.
+
+/** Reads a server function's answer, turning its { error } into a thrown Error. */
+async function functionResult({ data, error }) {
+  if (!error) return data;
+  let message = error.message;
+  try {
+    message = (await error.context.json()).error ?? message;
+  } catch {
+    // Not a JSON answer: keep the general message.
+  }
+  throw new Error(message);
+}
+
+/** A one-time code that signs another device in as me (works for 30 minutes). */
+export async function createSignInCode() {
+  return (await functionResult(await sb.functions.invoke('sign-in-code', { body: { action: 'create' } }))).code;
+}
+
+/** Signs this device in as the person who made `code`. Resolves their name. */
+export async function signInWithCode(code) {
+  const { tokenHash, name } = await functionResult(
+    await sb.functions.invoke('sign-in-code', { body: { action: 'redeem', code } }),
+  );
+  const { session } = must(await sb.auth.verifyOtp({ token_hash: tokenHash, type: 'magiclink' }));
+  await refresh(session.user.id);
+  return name;
 }
 
 export async function removeFriend(friendId) {

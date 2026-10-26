@@ -205,6 +205,13 @@ function parksScreen() {
         <button class="icon-btn" data-action="locate" aria-label="Find the park I'm at">${icon.locate}</button>
       </div>
     </header>
+    ${store.isOnline() && push.needsHomeScreen() ? `
+      <button class="card home-card" data-action="open-homescreen">
+        <span class="emoji">📲</span>
+        <div class="grow"><b>Put Park Hoppers on your Home Screen</b>
+          <div class="small muted">For notifications, and so it opens like an app. You’ll stay signed in.</div></div>
+        <span class="chev">${icon.chevron}</span>
+      </button>` : ''}
     ${controlsCard()}
     ${mine ? hereCard(mine) : ''}
     <div class="map-slot" id="map-main"></div>
@@ -425,7 +432,10 @@ function meScreen() {
   const { prefs } = store.state;
   const account = {
     online: `<div class="list-title">Account</div>
-      <div class="list"><button class="row row-btn danger" data-action="leave">Leave Park Hoppers</button></div>
+      <div class="list">
+        <button class="row row-btn" data-action="open-device">${icon.invite} Use on another phone or computer</button>
+        <button class="row row-btn danger" data-action="leave">Leave Park Hoppers</button>
+      </div>
       <p class="list-foot">Deletes your name, dogs, check-ins and posts from Park Hoppers.</p>`,
     'needs-join': `<a class="card join-card" href="#/join">
         <span class="emoji">🐾</span>
@@ -494,8 +504,14 @@ function joinScreen() {
       <h1>Park Hoppers</h1>
       <p class="muted">See when your friends’ dogs are at the park, so you can meet up.</p>
       <p class="invite-note" id="invite-note" hidden></p>
-      ${push.needsHomeScreen() ? `
-        <p class="home-tip small">📲 On iPhone, Park Hoppers works best from your Home Screen: tap <b>Share</b> → <b>Add to Home Screen</b>, then join from the new icon. ${store.pendingInvite() ? 'Bring your invite code below with you.' : ''}</p>` : ''}
+      ${push.onHomeScreenApp() ? `
+        <button class="card home-card" data-action="open-signin">
+          <span class="emoji">🔑</span>
+          <div class="grow"><b>Already joined in Safari?</b>
+            <div class="small muted">Sign in with your code to pick up where you left off.</div></div>
+          <span class="chev">${icon.chevron}</span>
+        </button>
+        <div class="list-title flush">New to Park Hoppers?</div>` : ''}
       <form data-submit="join" class="stack">
         ${dogPhotoPicker()}
         <input class="field" name="name" placeholder="Your first name" required maxlength="40" autocomplete="given-name">
@@ -509,6 +525,7 @@ function joinScreen() {
           value="${esc(prettyCode(store.pendingInvite() ?? ''))}">
         <button class="btn btn-primary" type="submit">${icon.paw} Join the pack</button>
       </form>
+      <button class="link-btn look-around" data-action="open-signin">Already joined on another phone? Sign in with a code</button>
       <button class="link-btn look-around" data-action="look-around">Just look around first</button>
       <p class="footnote center">No email or password. Only friends (people you invite, or who invite you) can see your name, your dogs and where you check in.</p>
     </div>`;
@@ -653,6 +670,39 @@ const sheets = {
       <form data-submit="use-code" class="code-form">
         <input class="field" name="code" placeholder="e.g. K7P2-9QXM" maxlength="12" autocomplete="off" autocapitalize="characters" ${sheet.focusCode ? 'autofocus' : ''}>
         <button class="btn btn-plain" type="submit">Add</button>
+      </form>`;
+  },
+
+  device() {
+    const made = sheet.signIn;
+    return `
+      ${sheetHead('Use on another device', { left: '', right: 'Done' })}
+      <p class="sheet-sub">Sign in as ${esc(store.me()?.name ?? 'you')} on another phone, a computer, or your Home Screen.</p>
+      ${signInCodeCard(made, 'On the other device, open Park Hoppers and tap “Sign in with a code”. Or scan this with its camera.')}`;
+  },
+
+  homescreen() {
+    const made = sheet.signIn;
+    return `
+      ${sheetHead('Add to Home Screen', { left: '', right: 'Done' })}
+      <ol class="steps">
+        <li>Tap the <b>Share</b> button. On newer iPhones, tap the <b>⋯</b> or <b>≡</b> menu next to the address first.</li>
+        <li>Choose <b>Add to Home Screen</b> (it may be under <b>View More</b>), then <b>Add</b>.</li>
+        <li>Open Park Hoppers from your Home Screen, tap <b>Already joined in Safari?</b>, and enter this code:</li>
+      </ol>
+      ${signInCodeCard(made, '')}`;
+  },
+
+  signin() {
+    return `
+      ${sheetHead('Sign in with a code')}
+      <p class="sheet-sub">On the phone or browser where you already use Park Hoppers, open <b>Me → Use on another phone or computer</b>. Enter the code it shows.</p>
+      <form data-submit="signin" class="stack spaced">
+        <div class="code-form">
+          <input class="field code-field" name="code" placeholder="e.g. K7P2-9QXM" maxlength="12" autocomplete="one-time-code" autocapitalize="characters" required>
+          ${navigator.clipboard?.readText ? '<button class="btn btn-plain" type="button" data-action="paste-code">Paste</button>' : ''}
+        </div>
+        <button class="btn btn-primary" type="submit">Sign in</button>
       </form>`;
   },
 
@@ -843,11 +893,34 @@ store.subscribe(renderView);
 
 // ---------- What taps do ----------
 
-const QR_LIBRARY = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/+esm';
+/** The sign-in code with a QR code and a Copy button, or a placeholder while it's being made. */
+function signInCodeCard(made, hint) {
+  if (!made) return '<div class="card center invite-card"><div class="small muted">Making your code…</div></div>';
+  return `
+    <div class="card center invite-card">
+      ${hint ? `<div class="qr-tile" id="signin-qr" role="img" aria-label="QR code that signs in as you"></div>
+      <div class="small muted">${hint}</div>` : ''}
+      <div class="invite-code">${prettyCode(made.code)}</div>
+      <div class="small muted">Works once, for 30 minutes. Don’t share it: it signs in as you.</div>
+    </div>
+    <button class="btn btn-primary spaced" data-action="copy-signin">Copy code</button>`;
+}
 
-/** Draws the invite link as a QR code in the invite sheet. The library loads the first time. */
-async function drawInviteQr(link) {
-  const box = document.getElementById('invite-qr');
+/** Makes a sign-in code and shows it in the sheet that asked for it. */
+async function openSignInCodeSheet(type) {
+  openSheet({ type });
+  let made;
+  if (!(await run(async () => { made = await store.createSignInCode(); }))) return closeSheet();
+  if (sheet?.type !== type) return; // closed while the code was being made
+  openSheet({ type, signIn: made });
+  if (type === 'device') drawQr('signin-qr', made.link);
+}
+
+const QR_LIBRARY = './vendor/qrcode-generator.mjs'; // qrcode-generator 1.4.4
+
+/** Draws a link as a QR code in the element with this id. The library loads the first time. */
+async function drawQr(id, link) {
+  const box = document.getElementById(id);
   try {
     const { default: qrcode } = await import(QR_LIBRARY);
     const qr = qrcode(0, 'M');
@@ -858,6 +931,17 @@ async function drawInviteQr(link) {
     console.warn('Couldn’t draw the QR code:', error);
     box.hidden = true; // the code and the Share button still work
   }
+}
+
+/** After signing in with a code: straight to the parks, signed in as before. */
+function signedIn(name) {
+  status = 'online';
+  location.hash = '#/parks';
+  route = parseHash();
+  $view.innerHTML = '';
+  renderView();
+  showBanner(`Welcome back${name ? `, ${name}` : ''}! 🐾`, 'You’re signed in, with your dogs and friends.');
+  acceptInviteFromLink();
 }
 
 async function showInvitePreview() {
@@ -965,7 +1049,7 @@ const actions = {
     let made;
     if (await run(async () => { made = await store.createInvite(); })) {
       openSheet({ type: 'invite', invite: made });
-      drawInviteQr(made.link);
+      drawQr('invite-qr', made.link);
     }
   },
   async 'share-invite'() {
@@ -994,6 +1078,27 @@ const actions = {
     }
   },
   'edit-dog': (el) => openSheet({ type: 'editdog', dogId: el.dataset.dog }),
+  'open-device': () => openSignInCodeSheet('device'),
+  'open-homescreen': () => openSignInCodeSheet('homescreen'),
+  'open-signin': () => openSheet({ type: 'signin' }),
+  async 'copy-signin'() {
+    try {
+      await navigator.clipboard.writeText(sheet.signIn.code);
+      showBanner('Code copied', 'Paste it on the other device within 30 minutes.');
+    } catch {
+      showBanner('Your code', prettyCode(sheet.signIn.code));
+    }
+  },
+  async 'paste-code'() {
+    try {
+      const text = await navigator.clipboard.readText();
+      const code = text.match(/[A-Z0-9]{4}-?[A-Z0-9]{4}/i)?.[0];
+      if (code) document.querySelector('form[data-submit=signin] input').value = prettyCode(code.replace('-', ''));
+      else showBanner('Nothing to paste', 'Copy your code on the other device first.');
+    } catch {
+      // Paste was declined: the code can still be typed.
+    }
+  },
   async checkout() {
     if (await run(() => store.checkOut())) showBanner('Checked out', 'Thanks for hopping by! 🐾');
   },
@@ -1173,6 +1278,14 @@ const submits = {
     closeSheet();
     showBanner(`${name} is updated`, 'Friends see the new details at the park.');
   },
+  async signin(form) {
+    const code = new FormData(form).get('code').trim();
+    if (!code) return;
+    let name;
+    if (!(await submitting(form, async () => { name = await store.signInWithCode(code); }))) return;
+    closeSheet();
+    signedIn(name);
+  },
   async 'use-code'(form) {
     const code = new FormData(form).get('code').trim();
     if (!code) return;
@@ -1214,6 +1327,7 @@ document.addEventListener('keydown', (e) => {
 // ---------- Start up ----------
 
 renderView(); // splash while we connect
+window.parkHoppersStarted = true; // stops index.html's "taking a while" message
 push.register(); // the background helper that shows notifications while the app is closed
 status = await store.start({ onArrival: announceArrival });
 route = parseHash();
@@ -1223,6 +1337,10 @@ if (status === 'offline') {
 }
 if (store.state.prefs.autoCheckIn) startAutoCheckIn();
 if (status === 'online') acceptInviteFromLink();
+if (status === 'needs-join' && store.linkSignIn()) {
+  let name;
+  if (await run(async () => { name = await store.signInWithCode(store.linkSignIn()); })) signedIn(name);
+}
 
 setInterval(store.tick, 60_000);
 
