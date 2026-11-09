@@ -1,12 +1,15 @@
-# Free Supabase projects pause after a week without activity, which takes the app's real
-# people, check-ins and photos offline. This runs a small database query every two days so
-# that never happens. If Supabase is already paused or down, the run fails and GitHub emails
-# the repo owner, so a pause doesn't go unnoticed.
+# Free Supabase projects pause after a week without enough database activity, which takes the
+# app's real people, check-ins and photos offline. This writes a heartbeat to the database
+# four times a day so that doesn't happen (supabase/migrations/20261108150000_keep_alive.sql).
+#
+# If Supabase is paused anyway, the run fails and GitHub emails the repo owner. If the
+# SUPABASE_ACCESS_TOKEN secret is set (a personal access token from
+# https://supabase.com/dashboard/account/tokens), it also asks Supabase to restore the project.
 name: Keep Supabase awake
 
 on:
   schedule:
-    - cron: "17 14 */2 * *" # every other day, around 10 AM in Charleston
+    - cron: "17 */6 * * *" # every 6 hours
   workflow_dispatch: # also runnable by hand from the Actions tab
 
 permissions:
@@ -19,22 +22,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run a database query
+      - name: Write the database heartbeat
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: |
           # The same public address and publishable key the website uses (web/config.js).
           URL=$(sed -n "s/.*SUPABASE_URL = '\(.*\)'.*/\1/p" web/config.js)
           KEY=$(sed -n "s/.*SUPABASE_KEY = '\(.*\)'.*/\1/p" web/config.js)
-          # invite_preview is open to everyone and reads the database (an unknown code just
-          # returns nothing), so it counts as real activity without changing any data.
+          REF=$(echo "$URL" | sed -n 's|https://\([a-z0-9]*\)\.supabase\.co|\1|p')
           status=$(curl -s -o response.txt -w "%{http_code}" --max-time 60 \
-            -X POST "$URL/rest/v1/rpc/invite_preview" \
-            -H "apikey: $KEY" -H "Content-Type: application/json" \
-            -d '{"invite_code":"KEEPAWAKE"}')
+            -X POST "$URL/rest/v1/rpc/keep_alive" \
+            -H "apikey: $KEY" -H "Content-Type: application/json" -d '{}')
           echo "Supabase answered HTTP $status: $(cat response.txt)"
-          if [ "$status" != "200" ]; then
-            echo "::error::Supabase didn't answer. It may be paused: open https://supabase.com/dashboard/project/dndbyhphjvumqkjtuncn and click Restore."
-            exit 1
+          if [ "$status" = "200" ]; then exit 0; fi
+
+          echo "::error::Supabase didn't answer. It's probably paused: open https://supabase.com/dashboard/project/$REF and click Restore."
+          if [ -n "$SUPABASE_ACCESS_TOKEN" ]; then
+            restore=$(curl -s -o restore.txt -w "%{http_code}" --max-time 60 -X POST \
+              -H "Authorization: Bearer $SUPABASE_ACCESS_TOKEN" \
+              "https://api.supabase.com/v1/projects/$REF/restore")
+            echo "Asked Supabase to restore the project: HTTP $restore $(cat restore.txt)"
           fi
+          exit 1
 
       - name: Keep this schedule switched on
         # GitHub turns off scheduled workflows in public repos after 60 days without commits.

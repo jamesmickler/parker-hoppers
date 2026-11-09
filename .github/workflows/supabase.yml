@@ -1,0 +1,40 @@
+# Applies database changes (supabase/migrations) and server functions (supabase/functions) to
+# the live Supabase project whenever they change on main, so GitHub and Supabase always match.
+# Uses the SUPABASE_ACCESS_TOKEN secret, a personal access token from
+# https://supabase.com/dashboard/account/tokens (no database password needed).
+name: Update Supabase
+
+on:
+  push:
+    branches: [main]
+    paths: ["supabase/**"]
+  workflow_dispatch: # also runnable by hand from the Actions tab
+
+concurrency:
+  group: supabase
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 2.118.0
+
+      - name: Find the project
+        # The same project the website uses (web/config.js).
+        run: echo "PROJECT_REF=$(sed -n "s|.*SUPABASE_URL = 'https://\([a-z0-9]*\)\.supabase\.co'.*|\1|p" web/config.js)" >> "$GITHUB_ENV"
+
+      - name: Apply database changes
+        run: supabase db push --project-ref "$PROJECT_REF" --yes
+
+      - name: Deploy server functions
+        # Both functions check who's calling themselves, so Supabase's own sign-in check is off.
+        run: |
+          for dir in supabase/functions/*/; do
+            supabase functions deploy "$(basename "$dir")" --project-ref "$PROJECT_REF" --no-verify-jwt --use-api
+          done
