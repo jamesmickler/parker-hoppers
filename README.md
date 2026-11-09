@@ -25,7 +25,7 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
 
 ## How it's built
 
-- `web/`: the app. It's plain HTML, CSS and JavaScript with no build step. Maps use [Leaflet](https://leafletjs.com) with [OpenStreetMap](https://www.openstreetmap.org), and Directions open Apple Maps.
+- `web/`: the app. It's plain HTML, CSS and JavaScript with no build step. Maps use [Leaflet](https://leafletjs.com) with [OpenFreeMap](https://openfreemap.org)'s free Liberty style (Dark in dark mode), drawn by [MapLibre](https://maplibre.org) and falling back to plain [OpenStreetMap](https://www.openstreetmap.org) tiles. Directions open Apple Maps.
   - `data.js`: parks and the demo pack
   - `cloud.js`: [Supabase](https://supabase.com) for name-only sign-in, shared data, photo storage and live updates
   - `store.js`: blends real people from Supabase with the demo pack; every change the app can make
@@ -33,7 +33,7 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
 - `supabase/functions/notify-arrival`: sends the "just arrived!" phone notifications (Web Push).
 - `supabase/migrations/`: the database tables and access rules. People only see themselves and their friends; friendships are created only by using an invite code, and people can only change their own data. Apply with `supabase db push`.
 - `ios/`: the native iPhone app in SwiftUI. It uses the same Supabase data as the website, so web and iPhone users see each other live, and it adds automatic check-in that works with your phone in your pocket: iOS wakes the app near one of your parks, then precise GPS confirms you're inside the park's own zone. It has no third-party libraries; `ios/ParkerHoppers/Supabase/` is a small built-in Supabase client.
-- `web/vendor/`: pinned copies of Leaflet 1.9.4, supabase-js 2.118.0 and qrcode-generator 1.4.4, served from this site so the first screen never waits on another server.
+- `web/vendor/`: pinned copies of Leaflet 1.9.4, MapLibre GL 5.24.0 with its Leaflet connector 0.1.4, supabase-js 2.118.0 and qrcode-generator 1.4.4, served from this site so the first screen never waits on another server.
 - `web/sw.js` keeps a copy of the app on the phone, so it opens instantly, even on a bad connection. The publish step stamps each version into it, and phones switch to the new version on their next open.
 - `supabase/functions/sign-in-code`: makes and checks the one-time sign-in codes.
 - Every push to `main` publishes `web/` to GitHub Pages through `.github/workflows/pages.yml`.

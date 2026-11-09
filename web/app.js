@@ -807,6 +807,58 @@ $banner.addEventListener('click', (e) => {
 // Maps are made once and moved between screens, so they don't flicker on every update.
 const maps = {};
 
+// The map's look: OpenFreeMap's free "Liberty" style, or "Dark" in dark mode, drawn by
+// MapLibre (vendor/maplibre, version 5.24.0) under the Leaflet map and its pins. MapLibre
+// loads the first time a map is shown, so it doesn't slow down opening the app. If it can't
+// load, or the phone can't draw it, the plain OpenStreetMap map is used instead.
+const MAP_STYLES = {
+  light: 'https://tiles.openfreemap.org/styles/liberty',
+  dark: 'https://tiles.openfreemap.org/styles/dark',
+};
+const darkMode = window.matchMedia('(prefers-color-scheme: dark)');
+const mapStyle = () => (darkMode.matches ? MAP_STYLES.dark : MAP_STYLES.light);
+
+let vectorMaps = null;
+function loadVectorMaps() {
+  vectorMaps ??= new Promise((resolve) => {
+    const css = document.createElement('link');
+    css.rel = 'stylesheet';
+    css.href = 'vendor/maplibre/maplibre-gl.css';
+    document.head.append(css);
+    const add = (src, next) => {
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = next;
+      script.onerror = () => resolve(false);
+      document.head.append(script);
+    };
+    add('vendor/maplibre/maplibre-gl.js',
+      () => add('vendor/maplibre/leaflet-maplibre-gl.js', () => resolve(Boolean(window.L?.maplibreGL))));
+    setTimeout(() => resolve(false), 15000);
+  });
+  return vectorMaps;
+}
+
+/** Puts the streets and parks under a map: the clean style if possible, else OpenStreetMap. */
+async function addBaseMap(m) {
+  if (await loadVectorMaps()) {
+    try {
+      m.base = L.maplibreGL({ style: mapStyle(), attribution: '&copy; OpenFreeMap &copy; OpenStreetMap' }).addTo(m.map);
+      return;
+    } catch (error) {
+      console.warn('Couldn’t draw the map style; using OpenStreetMap:', error);
+    }
+  }
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '&copy; OpenStreetMap',
+  }).addTo(m.map);
+}
+
+// Switch the maps between light and dark along with the phone.
+darkMode.addEventListener('change', () => {
+  for (const m of Object.values(maps)) m.base?.getMaplibreMap?.().setStyle(mapStyle());
+});
+
 // The main map opens on the peninsula; James Island and West Ashley are a drag away.
 const DOWNTOWN = ['hazel-parker', 'cannon-park', 'brittlebank', 'white-point'];
 
@@ -833,10 +885,8 @@ function mountMap(slotId, key, list, focus) {
       dragging: !focus, touchZoom: !focus, doubleClickZoom: !focus,
     });
     map.attributionControl.setPrefix(false);
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19, attribution: '&copy; OpenStreetMap',
-    }).addTo(map);
     m = maps[key] = { el, map, layer: L.layerGroup().addTo(map), placed: false };
+    addBaseMap(m);
   } else {
     slot.appendChild(m.el);
     m.map.invalidateSize();
