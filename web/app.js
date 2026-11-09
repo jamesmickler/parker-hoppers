@@ -1,6 +1,6 @@
 // The screens, and what happens when you tap things.
 
-import { parks, parkById, offLeashStatus, distanceMeters, SIZES, COMFORT, PARTNERS, partnersNear, picksFor } from './data.js';
+import { parks, parkById, offLeashStatus, distanceMeters, SIZES, COMFORT } from './data.js';
 import * as store from './store.js';
 import * as auto from './autocheckin.js';
 import * as push from './push.js';
@@ -87,22 +87,6 @@ function dogDetailsFields(dog = {}) {
       <option value="">Choose one…</option>
       ${Object.entries(COMFORT).map(([key, label]) => `<option value="${key}" ${dog.comfort === key ? 'selected' : ''}>${label}</option>`).join('')}
     </select>`;
-}
-
-/** Partner offers as a list, each opening its coupon. Empty when there are none. */
-function perksList(partners, title, parkId = '') {
-  if (!partners.length) return '';
-  return `
-    <div class="list-title">${title}</div>
-    <div class="list">
-      ${partners.map((x) => `
-        <button class="row row-link" data-action="open-perk" data-partner="${x.id}" data-park="${parkId}">
-          <span class="perk-emoji">${x.emoji}</span>
-          <div class="grow"><b>${esc(x.offer)}</b> <span class="demo-tag">sample</span>
-            <div class="small muted">${esc(x.name)}${parkId ? ` · ${esc(x.walk)}` : ''}</div></div>
-          <span class="chev">${icon.chevron}</span>
-        </button>`).join('')}
-    </div>`;
 }
 
 /** "Right now: 2 large · 1 small", plus a heads-up about dogs that need space or are shy. */
@@ -242,6 +226,9 @@ function parksScreen() {
 function pushInfo() {
   const p = store.pushStatus();
   if (!store.isOnline()) return { text: 'Join Park Hoppers to get notified when friends arrive', disabled: true };
+  if (!store.state.prefs.plus && !p.on) {
+    return { text: 'Plus · get a notification when friends arrive, even with the app closed. Tap to learn more', disabled: false };
+  }
   if (p.on) return { text: 'On · you’ll get a notification when friends arrive at your parks', disabled: false };
   if (p.needsHomeScreen) return { text: 'On iPhone, first add Park Hoppers to your Home Screen: tap Share, then Add to Home Screen', disabled: true };
   if (!p.supported) return { text: 'This browser can’t show notifications', disabled: true };
@@ -332,7 +319,6 @@ function parkScreen(id) {
     ${store.state.prefs.autoCheckIn && p.zone && !amHere
       ? `<button class="link-btn demo-arrive" data-action="pretend-arrive" data-park="${p.id}">Demo: pretend I just walked in</button>`
       : ''}
-    ${perksList(partnersNear(p.id), 'Perks nearby', p.id)}
     <div class="list-title">Park info</div>
     <div class="list">
       <div class="row"><div class="grow">Hours</div><span class="muted small right">${esc(p.hoursText)}</span></div>
@@ -474,11 +460,11 @@ function meScreen() {
         </button>`).join('')}
       <button class="row row-btn" data-action="open-adddog">${icon.plus} Add a dog</button>
     </div>
-    <button class="card perks-card" data-action="open-perks">
-      <span class="perks-icon">🎁</span>
+    <button class="card plus-card" data-action="open-plus">
+      <img src="icons/icon-192.png" alt="" class="plus-icon">
       <div class="grow">
-        <b>Perks${store.myDogs()[0] ? ` for ${esc(store.myDogs()[0].name)}` : ''}</b>
-        <div class="small muted">Deals from dog businesses near your parks, and picks for your pack</div>
+        <b>${prefs.plus ? 'You have Park Hoppers Plus' : 'Get Park Hoppers Plus'}</b>
+        <div class="small muted">${prefs.plus ? 'Phone alerts, widget and AirTag help are on' : 'Phone alerts when friends arrive, widget, AirTag help · $3.99/month'}</div>
       </div>
       <span class="chev">${icon.chevron}</span>
     </button>
@@ -733,69 +719,36 @@ const sheets = {
       </div>`;
   },
 
-  perks() {
-    const dogs = store.myDogs().slice(0, 2);
-    const near = PARTNERS.filter((x) => x.parks.some((id) => store.alertsOn(id)));
-    return `
-      ${sheetHead('Perks', { left: '', right: 'Close' })}
-      <p class="sheet-sub">Deals from dog businesses near your parks, and picks matched to your pack.</p>
-      ${dogs.map((d) => `
-        <div class="list-title">Picked for ${esc(d.name)}</div>
-        <div class="list">
-          ${picksFor(d).map((pick) => `
-            <a class="row row-link" href="${pick.url}" target="_blank" rel="noopener">
-              <span class="perk-emoji">${pick.emoji}</span>
-              <div class="grow"><b>${esc(pick.title)}</b><div class="small muted">${esc(pick.why)}</div></div>
-              <span class="small muted">Chewy ↗</span>
-            </a>`).join('')}
-        </div>
-        ${dogDetails(d) ? '' : `<p class="list-foot">Add ${esc(d.name)}’s size and comfort with other dogs on the Me tab for better picks.</p>`}`).join('')}
-      ${perksList(near.length ? near : PARTNERS, 'Near your parks')}
-      <p class="privacy-note">🔒 Partners never see your name, your friends or where you check in. Perks only use the park you’re looking at and your dog’s size, and that stays in the app.</p>
-      <button class="btn btn-plain spaced" data-action="open-partner">Own a dog business? Partner with Park Hoppers</button>
-      <p class="footnote center">Prototype: the local partners and offers are samples, not real businesses. Shopping links go to Chewy.</p>`;
-  },
-
-  perk() {
-    const x = PARTNERS.find((p) => p.id === sheet.partnerId);
-    const from = parkById(sheet.parkId);
-    const where = from
-      ? `${x.walk} from ${from.name}`
-      : `Near ${x.parks.map((id) => parkById(id)?.name).filter(Boolean).join(', ')}`;
-    return `
-      ${sheetHead('', { left: '', right: 'Done' })}
-      <div class="perk-hero">
-        <span class="perk-big">${x.emoji}</span>
-        <h2>${esc(x.offer)}</h2>
-        <p class="muted">${esc(x.name)} · ${esc(x.kind)} <span class="demo-tag">sample</span></p>
-      </div>
-      <div class="card center invite-card">
-        <div class="small muted">Show this at the counter</div>
-        <div class="invite-code">${esc(x.code)}</div>
-        <div class="small muted">For Park Hoppers members</div>
-      </div>
-      <p class="perk-detail">${esc(x.detail)}</p>
-      <p class="small muted">${esc(where)}</p>
-      <p class="footnote center">Sample offer for the prototype. ${esc(x.name)} is a made-up business.</p>`;
-  },
-
-  partner() {
-    const point = (emoji, title, text) => `
+  plus() {
+    const on = store.state.prefs.plus;
+    const busiest = [...parks].sort((a, b) => store.visitors(b.id).length - store.visitors(a.id).length)[0];
+    const here = store.visitors(busiest.id);
+    const feature = (emoji, title, text) => `
       <div class="feature"><span class="emoji">${emoji}</span><div><b>${title}</b><div class="small muted">${text}</div></div></div>`;
     return `
-      ${sheetHead('For businesses', { left: '', right: 'Close' })}
-      <div class="perk-hero">
-        <span class="perk-big">🤝</span>
-        <h2>Reach dog owners at the park</h2>
-        <p class="muted">Groomers, daycares, vets, pet stores and dog-friendly cafés.</p>
+      ${sheetHead('', { left: '', right: 'Close' })}
+      <div class="plus-hero">
+        <img src="icons/icon-192.png" alt="">
+        <h2>Park Hoppers Plus</h2>
+        <p class="muted">Never miss a playdate.</p>
+        <div class="price"><b>$3.99</b> / month</div>
       </div>
+      <div class="widget" aria-label="Home-screen widget preview">
+        <div class="widget-top">🐾 Park Hoppers</div>
+        <div class="grow"></div>
+        <b>${esc(busiest.name)}</b>
+        ${avatars(here.flatMap((v) => v.dogs), 24)}
+        <div class="small muted">${here.length} ${here.length === 1 ? 'friend' : 'friends'} here</div>
+      </div>
+      <p class="small muted center">Home-screen widget preview</p>
       <div class="stack features">
-        ${point('📍', 'Show up where your customers already are', 'Your offer sits on the page of each dog park near you, seen by owners who are there or headed there.')}
-        ${point('🐕', 'Reach the right dogs', 'Offers can be shown by dog size, like large-dog toys for big-dog owners.')}
-        ${point('💵', 'One simple monthly price', 'A flat fee per park, for example $100 a month. No bidding, no ad auctions.')}
-        ${point('🔒', 'No tracking, ever', 'You see how many people opened and used your offer, never who they are or where they’ve been.')}
+        ${feature('📱', 'Home-screen widget', 'See who’s at your parks without opening the app.')}
+        ${feature('🔔', 'Phone alerts, even with the app closed', 'Get a notification the moment a friend’s pup walks into one of your parks.')}
+        ${feature('📍', 'AirTag sharing, made easy', 'Step-by-step help sharing your dog’s AirTag with trusted friends in Apple’s Find My, so they can help if your pup slips away.')}
       </div>
-      <p class="footnote center">Prototype: partner sign-up isn’t open yet, and the price is an example.</p>`;
+      <p class="small muted center">Always free: checking in, seeing friends at the park, pop-ups while the app is open, invites, dog profiles and Moments.</p>
+      <button class="btn btn-primary" data-action="toggle-plus">${on ? 'Cancel Plus (demo)' : 'Start Plus · $3.99/month (demo)'}</button>
+      <p class="footnote center">Prototype only. No payment is taken, and you can cancel any time.</p>`;
   },
 };
 
@@ -1172,9 +1125,7 @@ const actions = {
   'open-checkin': (el) => openSheet({ type: 'checkin', parkId: el.dataset.park }),
   'open-newpost': () => openSheet({ type: 'newpost' }),
   'open-adddog': () => openSheet({ type: 'adddog' }),
-  'open-perks': () => openSheet({ type: 'perks' }),
-  'open-perk': (el) => openSheet({ type: 'perk', partnerId: el.dataset.partner, parkId: el.dataset.park }),
-  'open-partner': () => openSheet({ type: 'partner' }),
+  'open-plus': () => openSheet({ type: 'plus' }),
   'post-menu': (el) => openSheet({ type: 'postmenu', postId: el.dataset.post }),
   'close-sheet': closeSheet,
   like: (el) => run(() => store.toggleLike(el.dataset.post)),
@@ -1194,6 +1145,15 @@ const actions = {
     closeSheet();
     showBanner('Posts hidden', `You won’t see ${p.name}’s posts anymore.`);
   },
+  async 'toggle-plus'() {
+    const on = !store.state.prefs.plus;
+    store.setPref('plus', on);
+    closeSheet();
+    if (!on && store.state.prefs.push) await run(() => store.disablePush());
+    showBanner(on ? 'Welcome to Plus! ✨' : 'Plus turned off', on
+      ? 'Turn on Notifications on the Parks tab to hear when friends arrive, even with the app closed.'
+      : 'You’re back on the free plan. Pop-ups while the app is open still work.');
+  },
   'demo-home'() {
     store.sendDemoPackHome();
     showBanner('Demo friends went home', 'Maya, Theo and friends left the parks.');
@@ -1210,6 +1170,12 @@ const changes = {
   },
   async 'toggle-push'(el) {
     const on = el.checked;
+    if (on && !store.state.prefs.plus) {
+      // Phone notifications are the Plus feature: show what Plus is instead.
+      el.checked = false;
+      openSheet({ type: 'plus' });
+      return;
+    }
     // Straight into enablePush: phones only ask for permission in direct response to a tap.
     const ok = await run(() => (on ? store.enablePush() : store.disablePush()));
     if (!ok) {
