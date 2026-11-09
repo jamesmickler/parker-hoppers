@@ -4,6 +4,7 @@ import { parks, parkById, offLeashStatus, distanceMeters, SIZES, COMFORT } from 
 import * as store from './store.js';
 import * as auto from './autocheckin.js';
 import * as push from './push.js';
+import { APP_VERSION } from './config.js';
 
 const $view = document.getElementById('view');
 const $tabs = document.getElementById('tabs');
@@ -497,7 +498,7 @@ function meScreen() {
       </div>
       ${prefs.demoMode ? '<button class="row row-btn danger" data-action="demo-home">Send demo friends home</button>' : ''}
     </div>
-    <p class="footnote center">Park Hoppers · prototype</p>`;
+    <p class="footnote center">Park Hoppers · version ${APP_VERSION.startsWith('__') ? 'preview' : APP_VERSION}</p>`;
 }
 
 function joinScreen() {
@@ -1407,7 +1408,17 @@ document.addEventListener('keydown', (e) => {
 
 renderView(); // splash while we connect
 window.parkHoppersStarted = true; // stops index.html's "taking a while" message
-push.register(); // the background helper that shows notifications while the app is closed
+push.register(); // the background helper: keeps the app on the phone, shows notifications
+
+// A new version downloads in the background each time the app opens (sw.js). If it finishes
+// while the app has only just been opened, switch to it right away instead of next time,
+// unless someone is in the middle of something.
+const openedAt = Date.now();
+const hadVersion = Boolean(navigator.serviceWorker?.controller); // false on the very first visit
+navigator.serviceWorker?.addEventListener('controllerchange', () => {
+  const busy = sheet || (route.name === 'join' && [...$view.querySelectorAll('input')].some((i) => i.value));
+  if (hadVersion && !busy && Date.now() - openedAt < 30000) location.reload();
+});
 status = await store.start({ onArrival: announceArrival, onSignedOut: signedOutElsewhere });
 route = parseHash();
 renderView();

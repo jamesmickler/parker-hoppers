@@ -28,7 +28,9 @@ jobs:
         run: |
           files=$(cd web && find . -type f ! -name sw.js ! -name '.*' | sed 's|^\./||' | sort | sed 's/.*/"&"/' | paste -sd, -)
           sed -i "s|'__BUILD__'|'${GITHUB_SHA::7}'|; s|\[/\*FILES\*/\]|[${files}]|" web/sw.js
+          sed -i "s|APP_VERSION = '__BUILD__'|APP_VERSION = '${GITHUB_SHA::7} · $(TZ=America/New_York date '+%b %-d')'|" web/config.js
           head -12 web/sw.js | tail -3
+          grep APP_VERSION web/config.js
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
