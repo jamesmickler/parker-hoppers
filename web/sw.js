@@ -12,7 +12,12 @@ const deployed = !VERSION.startsWith('__');
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
-  if (deployed) event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(['./', ...FILES])));
+  // cache: 'reload' skips the phone's ordinary browser cache, which may still hold files from
+  // the previous version for up to 10 minutes. Mixing two versions can stop the app starting.
+  if (deployed) {
+    const fresh = ['./', ...FILES].map((file) => new Request(file, { cache: 'reload' }));
+    event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(fresh)));
+  }
 });
 
 self.addEventListener('activate', (event) => event.waitUntil((async () => {
