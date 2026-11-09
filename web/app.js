@@ -1413,7 +1413,7 @@ push.register(); // the background helper: keeps the app on the phone, shows not
 // A new version downloads in the background each time the app opens (sw.js). If it finishes
 // while the app has only just been opened, switch to it right away instead of next time,
 // unless someone is in the middle of something.
-const openedAt = Date.now();
+let openedAt = Date.now();
 const hadVersion = Boolean(navigator.serviceWorker?.controller); // false on the very first visit
 navigator.serviceWorker?.addEventListener('controllerchange', () => {
   const busy = sheet || (route.name === 'join' && [...$view.querySelectorAll('input')].some((i) => i.value));
@@ -1436,5 +1436,10 @@ setInterval(store.tick, 60_000);
 
 // Phones pause pages in the background; catch up as soon as the app is open again.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') store.refresh();
+  if (document.visibilityState !== 'visible') return;
+  store.refresh();
+  // Phones often resume the app instead of reopening it, so check for a new version here
+  // too, and treat this like a fresh open for switching to it.
+  openedAt = Date.now();
+  navigator.serviceWorker?.getRegistration().then((registration) => registration?.update()).catch(() => {});
 });
