@@ -4,7 +4,6 @@ import { parks, parkById, offLeashStatus, distanceMeters, SIZES, COMFORT } from 
 import * as store from './store.js';
 import * as auto from './autocheckin.js';
 import * as push from './push.js';
-import { googleMapsOn, mountGoogleMap, onGoogleMapsFailure } from './maps.js';
 
 const $view = document.getElementById('view');
 const $tabs = document.getElementById('tabs');
@@ -295,7 +294,7 @@ function parkScreen(id) {
   const visitors = store.visitors(p.id);
   const amHere = store.myCheckIn()?.parkId === p.id;
   const status = offLeashStatus(p);
-  const directions = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
+  const directions = `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}`;
   return `
     <a class="back" href="#/parks">${icon.back}Parks</a>
     <div class="map-slot small" id="map-detail"></div>
@@ -817,26 +816,7 @@ function pinHtml(p) {
   return `<span class="pin ${store.visitors(p.id).length ? 'busy' : ''}">🐾${n ? ` ${n}` : ''}</span>`;
 }
 
-/** Google Maps when it's set up (maps.js), otherwise (or if it fails) the built-in map. */
 function mountMap(slotId, key, list, focus) {
-  if (!googleMapsOn()) {
-    mountLeafletMap(slotId, key, list, focus);
-    return;
-  }
-  mountGoogleMap(slotId, key, list, {
-    focus,
-    fitTo: list.filter((p) => DOWNTOWN.includes(p.id)),
-    pinHtml,
-    onPick: (p) => { location.hash = `#/park/${p.id}`; },
-  }).then((ok) => {
-    if (!ok) mountLeafletMap(slotId, key, list, focus);
-  });
-}
-
-// If Google refuses the key after a map is up, swap in the built-in map.
-onGoogleMapsFailure(() => renderView());
-
-function mountLeafletMap(slotId, key, list, focus) {
   const slot = document.getElementById(slotId);
   if (!slot) return;
   if (!window.L) {

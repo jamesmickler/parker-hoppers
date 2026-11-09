@@ -25,7 +25,7 @@ Open the live site on a phone for the best experience. On iPhone, tap Share → 
 
 ## How it's built
 
-- `web/`: the app. It's plain HTML, CSS and JavaScript with no build step. Maps use Google Maps once a key is set in `web/config.js` (see `web/maps.js`). Without a key, or if Google can't load, they fall back to [Leaflet](https://leafletjs.com) with [OpenStreetMap](https://www.openstreetmap.org). Directions open Google Maps.
+- `web/`: the app. It's plain HTML, CSS and JavaScript with no build step. Maps use [Leaflet](https://leafletjs.com) with [OpenStreetMap](https://www.openstreetmap.org), and Directions open Apple Maps.
   - `data.js`: parks and the demo pack
   - `cloud.js`: [Supabase](https://supabase.com) for name-only sign-in, shared data, photo storage and live updates
   - `store.js`: blends real people from Supabase with the demo pack; every change the app can make
