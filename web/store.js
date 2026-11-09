@@ -92,10 +92,12 @@ export const subscribe = (fn) => listeners.add(fn);
  * or 'offline' (no connection: demo pack only).
  */
 let arrivalHandler = () => {};
+let signedOutHandler = () => {};
 let listening = false;
 
-export async function start({ onArrival }) {
+export async function start({ onArrival, onSignedOut }) {
   arrivalHandler = onArrival;
+  signedOutHandler = onSignedOut;
   const { available, signedIn } = await cloud.connect();
   if (!available) return 'offline';
   online = signedIn;
@@ -150,7 +152,7 @@ function listen() {
   if (listening) return;
   listening = true;
   cloud.listen({
-    onChange: notify,
+    onChange: afterReload,
     onArrival: ({ personId, parkId }) => {
       const who = person(personId);
       if (who) arrivalHandler({ person: who, dogs: dogsOf(personId, parkId), park: parkById(parkId) });
@@ -188,10 +190,20 @@ export async function refresh() {
   if (!online) return;
   try {
     await cloud.refresh();
-    notify();
+    afterReload();
   } catch (error) {
     console.warn('Refresh failed:', error);
   }
+}
+
+/** After new data arrives: if this account was deleted elsewhere (Leave on another device), stop here too. */
+function afterReload() {
+  if (online && !cloud.data.me) {
+    online = false;
+    signedOutHandler();
+    return;
+  }
+  notify();
 }
 
 // ---------- Reading ----------

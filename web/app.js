@@ -4,6 +4,7 @@ import { parks, parkById, offLeashStatus, distanceMeters, SIZES, COMFORT } from 
 import * as store from './store.js';
 import * as auto from './autocheckin.js';
 import * as push from './push.js';
+import { googleMapsOn, mountGoogleMap, onGoogleMapsFailure } from './maps.js';
 
 const $view = document.getElementById('view');
 const $tabs = document.getElementById('tabs');
@@ -294,7 +295,7 @@ function parkScreen(id) {
   const visitors = store.visitors(p.id);
   const amHere = store.myCheckIn()?.parkId === p.id;
   const status = offLeashStatus(p);
-  const directions = `https://maps.apple.com/?daddr=${p.lat},${p.lng}&q=${encodeURIComponent(p.name)}`;
+  const directions = `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}`;
   return `
     <a class="back" href="#/parks">${icon.back}Parks</a>
     <div class="map-slot small" id="map-detail"></div>
@@ -810,7 +811,32 @@ const maps = {};
 // The main map opens on the peninsula; James Island and West Ashley are a drag away.
 const DOWNTOWN = ['hazel-parker', 'cannon-park', 'brittlebank', 'white-point'];
 
+/** The 🐾 bubble on the map, with how many dogs are there and orange if friends are. */
+function pinHtml(p) {
+  const n = store.dogCount(p.id);
+  return `<span class="pin ${store.visitors(p.id).length ? 'busy' : ''}">🐾${n ? ` ${n}` : ''}</span>`;
+}
+
+/** Google Maps when it's set up (maps.js), otherwise (or if it fails) the built-in map. */
 function mountMap(slotId, key, list, focus) {
+  if (!googleMapsOn()) {
+    mountLeafletMap(slotId, key, list, focus);
+    return;
+  }
+  mountGoogleMap(slotId, key, list, {
+    focus,
+    fitTo: list.filter((p) => DOWNTOWN.includes(p.id)),
+    pinHtml,
+    onPick: (p) => { location.hash = `#/park/${p.id}`; },
+  }).then((ok) => {
+    if (!ok) mountLeafletMap(slotId, key, list, focus);
+  });
+}
+
+// If Google refuses the key after a map is up, swap in the built-in map.
+onGoogleMapsFailure(() => renderView());
+
+function mountLeafletMap(slotId, key, list, focus) {
   const slot = document.getElementById(slotId);
   if (!slot) return;
   if (!window.L) {
@@ -837,12 +863,10 @@ function mountMap(slotId, key, list, focus) {
   }
   m.layer.clearLayers();
   for (const p of list) {
-    const n = store.dogCount(p.id);
-    const friendsHere = store.visitors(p.id).length > 0;
     const marker = L.marker([p.lat, p.lng], {
       keyboard: false,
       title: p.name,
-      icon: L.divIcon({ className: 'pin-wrap', iconSize: null, html: `<span class="pin ${friendsHere ? 'busy' : ''}">🐾${n ? ` ${n}` : ''}</span>` }),
+      icon: L.divIcon({ className: 'pin-wrap', iconSize: null, html: pinHtml(p) }),
     });
     if (!focus) marker.on('click', () => { location.hash = `#/park/${p.id}`; });
     marker.addTo(m.layer);
@@ -936,6 +960,16 @@ async function drawQr(id, link) {
     console.warn('Couldn’t draw the QR code:', error);
     box.hidden = true; // the code and the Share button still work
   }
+}
+
+/** This account was deleted on another device: back to the join screen. */
+function signedOutElsewhere() {
+  status = 'needs-join';
+  closeSheet();
+  location.hash = '#/join';
+  route = parseHash();
+  renderView();
+  showBanner('You left Park Hoppers', 'Your account was removed on another device. You can join again any time.');
 }
 
 /** After signing in with a code: straight to the parks, signed in as before. */
@@ -1344,7 +1378,7 @@ document.addEventListener('keydown', (e) => {
 renderView(); // splash while we connect
 window.parkHoppersStarted = true; // stops index.html's "taking a while" message
 push.register(); // the background helper that shows notifications while the app is closed
-status = await store.start({ onArrival: announceArrival });
+status = await store.start({ onArrival: announceArrival, onSignedOut: signedOutElsewhere });
 route = parseHash();
 renderView();
 if (status === 'offline') {

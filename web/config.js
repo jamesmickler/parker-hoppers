@@ -6,4 +6,9 @@ export const SUPABASE_KEY = 'sb_publishable_CPvPGu-xoE7FlLkOmzgpNg_UMLeWgnA';
 
 // Public half of the key pair phone notifications are signed with. The private half lives
 // only in Supabase's secrets, used by supabase/functions/notify-arrival.
+// Google Maps browser key. Public by design (it ships in the website); in Google Cloud it's
+// restricted to this site's addresses, so it doesn't work anywhere else. Empty = the app
+// uses its built-in OpenStreetMap map. See web/maps.js.
+export const GOOGLE_MAPS_KEY = '';
+
 export const VAPID_PUBLIC_KEY = 'BFIAMQxFpI-5IMrZR6af8OSfzRraFKo53LjIT-nOXtyesgE38E7L0wyRhm28sVe9zC3aCqho9Qv3TPwp-hIml2E';

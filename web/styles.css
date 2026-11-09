@@ -264,6 +264,7 @@ h1.title { font-size: 26px; line-height: 1.15; letter-spacing: -0.01em; margin: 
 .leaflet-container { font: inherit; background: var(--field); }
 .leaflet-control-attribution { font-size: 10px; }
 .pin-wrap { background: none; border: 0; }
+.gpin { position: absolute; }
 .pin {
   display: inline-block;
   transform: translate(-50%, -50%);
