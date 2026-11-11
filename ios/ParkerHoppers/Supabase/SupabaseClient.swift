@@ -135,6 +135,28 @@ final class SupabaseClient {
         return SupabaseConfig.url.appending(path: "storage/v1/object/public/photos/\(path)")
     }
 
+    /// Names of the files in the signed-in person's own photo folder.
+    func myPhotoPaths() async throws -> [String] {
+        let session = try await validSession()
+        struct File: Decodable { let name: String }
+        let data = try await request("POST", "storage/v1/object/list/photos", json: ["prefix": session.userID, "limit": 1000])
+        return try decoder.decode([File].self, from: data).map { "\(session.userID)/\($0.name)" }
+    }
+
+    /// Deletes some of the signed-in person's photos ("<user id>/<file>.jpg").
+    func removePhotos(_ paths: [String]) async throws {
+        guard !paths.isEmpty else { return }
+        _ = try await request("DELETE", "storage/v1/object/photos", json: ["prefixes": paths])
+    }
+
+    /// The storage path of one of my own photos, or nil for anything else.
+    func myPhotoPath(_ url: URL?) -> String? {
+        guard let userID = session?.userID,
+              let path = url?.absoluteString.components(separatedBy: "/storage/v1/object/public/photos/").last,
+              path != url?.absoluteString, path.hasPrefix("\(userID)/") else { return nil }
+        return path
+    }
+
     // MARK: Plumbing
 
     private func request(_ method: String, _ path: String, json: Any? = nil, body: Data? = nil,

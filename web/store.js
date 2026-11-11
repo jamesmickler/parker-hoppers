@@ -155,7 +155,7 @@ function listen() {
     onChange: afterReload,
     onArrival: ({ personId, parkId }) => {
       const who = person(personId);
-      if (who) arrivalHandler({ person: who, dogs: dogsOf(personId, parkId), park: parkById(parkId) });
+      if (who && parkById(parkId)) arrivalHandler({ person: who, dogs: dogsOf(personId, parkId), park: parkById(parkId) });
     },
   });
 }
@@ -229,7 +229,7 @@ export function friends() {
 function allCheckIns() {
   const local = state.checkIns.filter((c) =>
     !isDemoMe(c.personId) && (demoMode() || !state.friendIds.includes(c.personId)));
-  return online ? [...local, ...cloud.data.checkIns] : local;
+  return online ? [...local, ...cloud.data.checkIns.filter((c) => parkById(c.parkId))] : local;
 }
 
 const hydrate = (c) => ({ ...c, person: person(c.personId), dogs: c.dogIds.map(dog).filter(Boolean) });

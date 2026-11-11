@@ -87,6 +87,8 @@ enum Cloud {
         var changes = fields(of: dog)
         if let photo { changes["photo_url"] = try await db.uploadPhoto(photo).absoluteString }
         try await db.update("dogs", "id=eq.\(dog.id)", changes)
+        // The replaced photo (dog.photoURL is still the old one). A leftover file isn't worth an error.
+        if photo != nil, let old = db.myPhotoPath(dog.photoURL) { try? await db.removePhotos([old]) }
     }
 
     private static func fields(of dog: Dog) -> [String: Any] {
@@ -133,8 +135,9 @@ enum Cloud {
         try await db.insert("posts", row)
     }
 
-    static func deletePost(_ id: String) async throws {
-        try await db.delete("posts", "id=eq.\(id)")
+    static func deletePost(_ post: Post) async throws {
+        try await db.delete("posts", "id=eq.\(post.id)")
+        if let path = db.myPhotoPath(post.photoURL) { try? await db.removePhotos([path]) }
     }
 
     static func setLike(_ postID: String, liked: Bool, myID: String) async throws {
@@ -155,6 +158,7 @@ enum Cloud {
 
     /// Deletes the person, their dogs, check-ins, posts and likes, then signs out.
     static func leave(myID: String) async throws {
+        if let paths = try? await db.myPhotoPaths() { try? await db.removePhotos(paths) }
         try await db.delete("profiles", "id=eq.\(myID)")
         db.signOut()
     }

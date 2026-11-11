@@ -347,7 +347,7 @@ final class AppState {
     }
 
     func deletePost(_ post: Post) async throws {
-        try await Cloud.deletePost(post.id)
+        try await Cloud.deletePost(post)
         await refresh()
     }
 

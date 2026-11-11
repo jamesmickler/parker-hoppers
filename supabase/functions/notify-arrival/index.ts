@@ -76,7 +76,7 @@ Deno.serve(async (req) => {
 
   const [{ data: profile }, { data: dogs }, { data: devices }] = await Promise.all([
     admin.from("profiles").select("name").eq("id", user.id).maybeSingle(),
-    admin.from("dogs").select("name").in("id", checkIn.dog_ids),
+    admin.from("dogs").select("name").in("id", checkIn.dog_ids).eq("owner_id", user.id),
     admin.from("push_subscriptions")
       .select("endpoint, p256dh, auth")
       .in("user_id", friendIds)

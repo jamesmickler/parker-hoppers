@@ -266,7 +266,7 @@ function hereCard(c) {
     <div class="here-card">
       ${avatars(c.dogs, 40)}
       <div class="grow">
-        <b>You're at ${esc(park.name)}</b>
+        <b>You're at ${esc(park?.name ?? 'the park')}</b>
         <div class="small muted">Checked in ${timeAgo(c.arrivedAt)} · auto check-out after 90 min</div>
       </div>
       <button class="pill-btn" data-action="checkout">Leave</button>
@@ -393,9 +393,9 @@ function postCard(post) {
 function friendsScreen() {
   const here = store.friendCheckIns();
   const hereRows = here.map((v) => `
-    <a class="row" href="#/park/${v.parkId}">
+    <a class="row" href="#/park/${encodeURIComponent(v.parkId)}">
       ${avatars(v.dogs, 40)}
-      <div class="grow"><b>${esc(v.person.name)} & ${esc(dogNames(v.dogs))}</b><div class="small muted">${esc(parkById(v.parkId).name)} · ${timeAgo(v.arrivedAt)}</div></div>
+      <div class="grow"><b>${esc(v.person.name)} & ${esc(dogNames(v.dogs))}</b><div class="small muted">${esc(parkById(v.parkId)?.name ?? 'A park')} · ${timeAgo(v.arrivedAt)}</div></div>
       <span class="chev">${icon.chevron}</span>
     </a>`).join('');
   const packRows = store.friends().map((f) => {

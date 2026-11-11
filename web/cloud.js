@@ -122,6 +122,20 @@ async function uploadPhoto(dataUrl, userId) {
   return sb.storage.from('photos').getPublicUrl(path).data.publicUrl;
 }
 
+/** The storage path of one of my own photos ("<my id>/<file>.jpg"), or null for anything else. */
+function myPhotoPath(url) {
+  const path = url?.split('/storage/v1/object/public/photos/')[1];
+  return path && data.me && path.startsWith(`${data.me.id}/`) ? path : null;
+}
+
+/** Deletes some of my photos from storage. Best effort: a leftover file isn't worth an error. */
+async function removePhotos(paths) {
+  const mine = paths.filter(Boolean);
+  if (!mine.length) return;
+  const { error } = await sb.storage.from('photos').remove(mine);
+  if (error) console.warn('Couldn’t delete old photos:', error);
+}
+
 /** Name-only sign-up: no email or password. Creates the person and their first dog. */
 export async function join(name, dog) {
   let { data: { session } } = await sb.auth.getSession();
@@ -146,8 +160,10 @@ export async function addDog({ name, breed, color, photo, size, comfort }) {
 /** Saves changes to one of my dogs (name, breed, color, size, comfort, and optionally a new photo). */
 export async function updateDog(id, { name, breed, color, size, comfort, photo }) {
   const changes = { name, breed, color, size: size ?? null, comfort: comfort ?? null };
+  const oldPhoto = data.dogs[id]?.photo;
   if (photo) changes.photo_url = await uploadPhoto(photo, data.me.id);
   must(await sb.from('dogs').update(changes).eq('id', id));
+  if (photo) await removePhotos([myPhotoPath(oldPhoto)]); // the replaced photo
   await refresh();
 }
 
@@ -223,14 +239,13 @@ export async function notifyArrival() {
 
 /** Saves this phone's notification address and which parks it wants to hear about. */
 export async function savePushDevice(subscription, parkIds) {
-  must(await sb.from('push_subscriptions').upsert({
-    endpoint: subscription.endpoint,
-    user_id: data.me.id,
-    p256dh: subscription.keys.p256dh,
-    auth: subscription.keys.auth,
-    park_ids: parkIds,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'endpoint' }));
+  // Through a server function, so a browser another account used before can be taken over.
+  must(await sb.rpc('save_push_device', {
+    p_endpoint: subscription.endpoint,
+    p_p256dh: subscription.keys.p256dh,
+    p_auth: subscription.keys.auth,
+    p_park_ids: parkIds,
+  }));
 }
 
 export async function removePushDevice(endpoint) {
@@ -249,7 +264,9 @@ export async function addPost({ dogId, parkId, caption, photo }) {
 }
 
 export async function deletePost(postId) {
+  const photo = data.posts.find((p) => p.id === postId)?.photo;
   must(await sb.from('posts').delete().eq('id', postId));
+  await removePhotos([myPhotoPath(photo)]);
   await refresh();
 }
 
@@ -265,8 +282,10 @@ export async function report(postId) {
   data.reported.add(postId);
 }
 
-/** Deletes the person, their dogs, check-ins, posts and likes, then signs out. */
+/** Deletes the person, their dogs, check-ins, posts, likes and photos, then signs out. */
 export async function leave() {
+  const { data: files } = await sb.storage.from('photos').list(data.me.id, { limit: 1000 });
+  await removePhotos((files ?? []).map((f) => `${data.me.id}/${f.name}`));
   must(await sb.from('profiles').delete().eq('id', data.me.id));
   await sb.auth.signOut();
   data.me = null;
