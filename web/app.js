@@ -131,7 +131,7 @@ const swatchPicker = (selected = COLORS[1]) => `
 const dogPhotoPicker = (dog) => `
   <label class="dog-photo-pick" aria-label="Add a photo of your dog">
     <span id="dog-photo-preview">${dog?.photo ? `<img src="${esc(dog.photo)}" alt="">` : icon.camera}</span>
-    <input type="file" accept="image/*" data-change="pick-dog-photo" class="visually-hidden">
+    <input type="file" accept="image/*" data-change="pick-dog-photo" class="visually-hidden" aria-label="Choose a photo of your dog">
   </label>`;
 
 /** Turns a server error into something a person can act on. */
@@ -329,7 +329,7 @@ function parkScreen(id) {
       </div>
       <div class="row">
         <div class="grow">Arrival alerts<div class="small muted">Get a heads-up when friends show up here</div></div>
-        ${toggle('toggle-alerts', store.alertsOn(p.id), `data-park="${p.id}"`)}
+        ${toggle('toggle-alerts', store.alertsOn(p.id), `data-park="${p.id}" aria-label="Arrival alerts for ${esc(p.name)}"`)}
       </div>
     </div>`;
 }
@@ -343,7 +343,7 @@ function visitorRow(v) {
     <div class="row">
       ${avatars(v.dogs, 40)}
       <div class="grow">
-        <b>${esc(dogNames(v.dogs))}</b>
+        <b>${esc(v.dogs.length ? dogNames(v.dogs) : v.person.name)}</b>
         <div class="small muted">${who} · arrived ${timeAgo(v.arrivedAt)}</div>
         ${details ? `<div class="small muted">${esc(details)}</div>` : ''}
       </div>
@@ -395,7 +395,7 @@ function friendsScreen() {
   const hereRows = here.map((v) => `
     <a class="row" href="#/park/${encodeURIComponent(v.parkId)}">
       ${avatars(v.dogs, 40)}
-      <div class="grow"><b>${esc(v.person.name)} & ${esc(dogNames(v.dogs))}</b><div class="small muted">${esc(parkById(v.parkId)?.name ?? 'A park')} · ${timeAgo(v.arrivedAt)}</div></div>
+      <div class="grow"><b>${esc(v.person.name)}${v.dogs.length ? ` & ${esc(dogNames(v.dogs))}` : ''}</b><div class="small muted">${esc(parkById(v.parkId)?.name ?? 'A park')} · ${timeAgo(v.arrivedAt)}</div></div>
       <span class="chev">${icon.chevron}</span>
     </a>`).join('');
   const packRows = store.friends().map((f) => {
@@ -473,15 +473,15 @@ function meScreen() {
     <div class="list">
       <div class="row">
         <div class="grow">Friend arrival pop-ups<div class="small muted">The banner at the top while Park Hoppers is open</div></div>
-        ${toggle('toggle-pref', prefs.alerts, 'data-pref="alerts"')}
+        ${toggle('toggle-pref', prefs.alerts, 'data-pref="alerts" aria-label="Friend arrival pop-ups"')}
       </div>
       <div class="row">
         <div class="grow">Phone notifications<div class="small muted">${esc(pushInfo().text)}</div></div>
-        ${toggle('toggle-push', prefs.push, '', pushInfo().disabled && !prefs.push)}
+        ${toggle('toggle-push', prefs.push, 'aria-label="Phone notifications"', pushInfo().disabled && !prefs.push)}
       </div>
       <div class="row">
         <div class="grow">Auto check-in at my parks<div class="small muted">While Park Hoppers is open, checks you in when you arrive at a park with 🔔 alerts on</div></div>
-        ${toggle('toggle-auto', prefs.autoCheckIn)}
+        ${toggle('toggle-auto', prefs.autoCheckIn, 'aria-label="Auto check-in at my parks"')}
       </div>
     </div>
     <div class="list-title">Privacy</div>
@@ -494,7 +494,7 @@ function meScreen() {
     <div class="list">
       <div class="row">
         <div class="grow">Demo Mode<div class="small muted">Adds a Demo button on the Parks tab that makes a made-up friend arrive, so you can show off alerts without a second phone</div></div>
-        ${toggle('toggle-demo', prefs.demoMode)}
+        ${toggle('toggle-demo', prefs.demoMode, 'aria-label="Demo Mode"')}
       </div>
       ${prefs.demoMode ? '<button class="row row-btn danger" data-action="demo-home">Send demo friends home</button>' : ''}
     </div>
@@ -753,7 +753,10 @@ const sheets = {
   },
 };
 
+let focusBeforeSheet = null;
+
 function openSheet(next) {
+  if (!sheet) focusBeforeSheet = document.activeElement; // remembered so closing can put focus back
   sheet = next;
   draftPhoto = null;
   $sheetRoot.innerHTML = `
@@ -761,12 +764,20 @@ function openSheet(next) {
       <div class="sheet" role="dialog" aria-modal="true"><div class="grabber"></div>${sheets[sheet.type]()}</div>
     </div>`;
   document.body.classList.add('locked');
+  // Move keyboard and screen-reader focus into the panel, named after its heading.
+  const panel = $sheetRoot.querySelector('.sheet');
+  const title = panel.querySelector('h3, h2')?.textContent.trim();
+  if (title) panel.setAttribute('aria-label', title);
+  panel.tabIndex = -1;
+  (panel.querySelector('[autofocus]') ?? panel).focus({ preventScroll: true });
 }
 
 function closeSheet() {
   sheet = null;
   $sheetRoot.innerHTML = '';
   document.body.classList.remove('locked');
+  if (focusBeforeSheet?.isConnected) focusBeforeSheet.focus({ preventScroll: true });
+  focusBeforeSheet = null;
 }
 
 // ---------- Banner (the pop-down notification) ----------
@@ -1294,7 +1305,10 @@ const submits = {
     const data = new FormData(form);
     const name = data.get('name').trim();
     const dogName = data.get('dog').trim();
-    if (!name || !dogName) return;
+    if (!name || !dogName) {
+      showBanner('Add your name and your dog’s name', 'Spaces on their own don’t count.');
+      return;
+    }
     const dog = {
       name: dogName, breed: data.get('breed').trim() || 'Good dog', color: data.get('color') || '#5B8DEF', photo: draftPhoto,
       size: data.get('size') || null, comfort: data.get('comfort') || null,
@@ -1402,6 +1416,21 @@ document.addEventListener('submit', (e) => {
 
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && sheet) closeSheet();
+  // Keep Tab inside an open panel instead of wandering onto the page behind it.
+  if (e.key === 'Tab' && sheet) {
+    const panel = $sheetRoot.querySelector('.sheet');
+    const stops = [...panel.querySelectorAll('a[href], button, input:not(.visually-hidden), select, textarea')].filter((el) => !el.disabled && el.offsetParent);
+    if (!stops.length) return;
+    const first = stops[0];
+    const last = stops[stops.length - 1];
+    if (!panel.contains(document.activeElement) || (e.shiftKey && (document.activeElement === first || document.activeElement === panel))) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
 });
 
 // ---------- Start up ----------

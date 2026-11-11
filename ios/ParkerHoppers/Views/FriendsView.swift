@@ -25,7 +25,7 @@ struct FriendsView: View {
                         HStack(spacing: 12) {
                             DogStack(dogs: dogs, size: 40)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("\(state.person(visit.personID)?.name ?? "") & \(dogNames(dogs))").font(.headline)
+                                Text(dogs.isEmpty ? (state.person(visit.personID)?.name ?? "") : "\(state.person(visit.personID)?.name ?? "") & \(dogNames(dogs))").font(.headline)
                                 Text("\(Park.find(visit.parkID)?.name ?? "") · \(timeAgo(visit.arrivedAt))")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
